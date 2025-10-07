@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { ProblemInput } from "./ProblemInput";
 import { CodeEditor } from "./CodeEditor";
 import { useProblem } from "../contexts/ProblemContext";
@@ -26,7 +26,7 @@ const DEFAULT_CODE_TEMPLATES: Record<string, string> = {
 };
 
 export const RightPanel: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { problemData, setProblemData } = useProblem();
   
   // ProblemContextから初期値を設定
@@ -71,7 +71,6 @@ export const RightPanel: React.FC = () => {
   };
 
   const handleTransitionToQuiz = () => {
-    // 問題データを保存
     setProblemData({
       problem,
       code,
@@ -79,8 +78,8 @@ export const RightPanel: React.FC = () => {
       learningTopic: problemData.learningTopic,
     });
 
-    // 選択式問題作成ページに遷移
-    navigate("/quiz-creation");
+    // Next.jsのルーターで遷移
+    router.push("/create-mcq");
   };
 
   return (

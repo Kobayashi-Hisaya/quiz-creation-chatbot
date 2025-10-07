@@ -1,6 +1,6 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,8 +8,14 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
+  const router = useRouter();
 
-  // 認証状態を読み込み中の場合はローディング表示
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
   if (loading) {
     return (
       <div style={{
@@ -25,11 +31,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // 未認証の場合はログインページにリダイレクト
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // リダイレクト中は何も表示しない
+    return null;
   }
 
-  // 認証済みの場合は子要素を表示
   return <>{children}</>;
 };

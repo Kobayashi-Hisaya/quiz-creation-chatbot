@@ -1,6 +1,6 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -8,8 +8,18 @@ interface AdminRouteProps {
 
 export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
   const { user, isAdmin, loading } = useAuth();
+  const router = useRouter();
 
-  // 認証状態を読み込み中の場合はローディング表示
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (!isAdmin) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [user, isAdmin, loading, router]);
+
   if (loading) {
     return (
       <div style={{
@@ -25,16 +35,10 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     );
   }
 
-  // 未認証の場合はログインページにリダイレクト
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!user || !isAdmin) {
+    // リダイレクト中は何も表示しない
+    return null;
   }
 
-  // 管理者でない場合はダッシュボードにリダイレクト
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // 管理者の場合は子要素を表示
   return <>{children}</>;
 };

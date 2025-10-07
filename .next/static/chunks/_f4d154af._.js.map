@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///Users/hisaya.kobayashi/MyProject/quiz-creation-chatbot/app/page.tsx"],"sourcesContent":["\"use client\"\nimport { useRouter } from 'next/navigation';\n\nexport default function Home() {\n  const router = useRouter();\n\n  const handleLoginClick = () => {\n    router.push('/create-quiz');\n  };\n\n  return (\n    <div>\n      <h1>トップページ</h1>\n      <button onClick={handleLoginClick} style={{ marginBottom: '16px' }}>\n        問題作成へ\n      </button>\n    </div>\n  );\n}"],"names":[],"mappings":";;;;;AACA;;;AADA;;AAGe,SAAS;;IACtB,MAAM,SAAS,IAAA,kJAAS;IAExB,MAAM,mBAAmB;QACvB,OAAO,IAAI,CAAC;IACd;IAEA,qBACE,6LAAC;;0BACC,6LAAC;0BAAG;;;;;;0BACJ,6LAAC;gBAAO,SAAS;gBAAkB,OAAO;oBAAE,cAAc;gBAAO;0BAAG;;;;;;;;;;;;AAK1E;GAfwB;;QACP,kJAAS;;;KADF","debugId":null}},
+    {"offset": {"line": 61, "column": 0}, "map": {"version":3,"sources":["file:///Users/hisaya.kobayashi/MyProject/quiz-creation-chatbot/node_modules/next/navigation.js"],"sourcesContent":["module.exports = require('./dist/client/components/navigation')\n"],"names":[],"mappings":"AAAA,OAAO,OAAO","ignoreList":[0],"debugId":null}}]
+}

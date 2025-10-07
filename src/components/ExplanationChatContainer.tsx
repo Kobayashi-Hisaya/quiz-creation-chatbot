@@ -14,8 +14,8 @@ export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> =
     try {
       const stored = localStorage.getItem('explanationChatMessages');
       if (stored) {
-        const parsedMessages = JSON.parse(stored);
-        return parsedMessages.map((msg: any) => ({
+        const parsedMessages = JSON.parse(stored) as Message[];
+        return parsedMessages.map((msg) => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }));
