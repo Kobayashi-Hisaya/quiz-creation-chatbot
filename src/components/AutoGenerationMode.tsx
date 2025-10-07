@@ -8,12 +8,16 @@ interface AutoGenerationModeProps {
   learningTopic: string;
   onQuizGenerated: (quiz: AutoGenerationResponse) => void;
   onGeneratingStateChange?: (isGenerating: boolean) => void;
+  explanation?: string;
+  onExplanationChange?: (explanation: string) => void;
 }
 
-export const AutoGenerationMode: React.FC<AutoGenerationModeProps> = ({ 
-  learningTopic, 
+export const AutoGenerationMode: React.FC<AutoGenerationModeProps> = ({
+  learningTopic,
   onQuizGenerated,
-  onGeneratingStateChange
+  onGeneratingStateChange,
+  explanation = '',
+  onExplanationChange
 }) => {
   const { problemData } = useProblem();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -225,6 +229,8 @@ export const AutoGenerationMode: React.FC<AutoGenerationModeProps> = ({
                   解説
                 </h4>
                 <textarea
+                  value={explanation}
+                  onChange={(e) => onExplanationChange?.(e.target.value)}
                   placeholder="問題の解説を入力してください..."
                   style={{
                     width: '96%',

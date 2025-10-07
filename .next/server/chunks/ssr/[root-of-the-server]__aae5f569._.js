@@ -40,7 +40,7 @@ function Home() {
         if (!loading) {
             if (user) {
                 // ログイン済みの場合は問題作成ページへ
-                router.push('/create-quiz');
+                router.push('/dashboard');
             } else {
                 // 未ログインの場合はログインページへ
                 router.push('/login');

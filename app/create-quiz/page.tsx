@@ -10,19 +10,19 @@ import type { LearningTopic } from '@/components/LearningTopicSelector';
 const HomePage: React.FC = () => {
   const { problemData, setLearningTopic } = useProblem();
   const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const [hasSelectedTopic, setHasSelectedTopic] = useState(false);
 
   // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
   useEffect(() => {
-    const hasSelectedTopic = localStorage.getItem('hasSelectedLearningTopic');
     if (!hasSelectedTopic || !problemData.learningTopic) {
       setShowTopicSelector(true);
     }
-  }, [problemData.learningTopic]);
+  }, [hasSelectedTopic, problemData.learningTopic]);
 
   const handleTopicSelect = (topic: LearningTopic) => {
     setLearningTopic(topic);
     chatService.setLearningTopic(topic);
-    localStorage.setItem('hasSelectedLearningTopic', 'true');
+    setHasSelectedTopic(true);
     setShowTopicSelector(false);
   };
 

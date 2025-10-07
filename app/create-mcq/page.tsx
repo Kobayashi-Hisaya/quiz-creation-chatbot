@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import Editor from '@monaco-editor/react';
 import { useProblem } from '@/contexts/ProblemContext';
 import { CreationModeSelector } from '@/components/CreationModeSelector';
@@ -11,6 +11,12 @@ import { ExplanationChatContainer } from '@/components/ExplanationChatContainer'
 import { ModeChangeConfirmDialog } from '@/components/ModeChangeConfirmDialog';
 import type { AutoGenerationResponse } from '@/types/quiz';
 import type * as monacoEditor from 'monaco-editor';
+import { chatService } from '@/services/chatService';
+import { explanationChatService } from '@/services/explanationChatService';
+import { saveProblem } from '@/services/problemService';
+import type { SaveProblemData, ChatHistoryInput } from '@/services/problemService';
+import type { QuizChoice } from '@/types/quiz';
+import BackToDashboardButton from '@/components/BackToDashboardButton';
 
 const QuizCreationPage: React.FC = () => {
   const router = useRouter();
@@ -26,6 +32,10 @@ const QuizCreationPage: React.FC = () => {
   const [isChatPopupOpen, setIsChatPopupOpen] = useState(false);
   const [codeWithBlanks, setCodeWithBlanks] = useState(problemData.code);
   const [editedProblem, setEditedProblem] = useState(problemData.problem);
+  const [manualChoices, setManualChoices] = useState<QuizChoice[]>([]);
+  const [manualExplanation, setManualExplanation] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true);
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monacoEditor | null>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -152,14 +162,88 @@ const QuizCreationPage: React.FC = () => {
     updateHighlights();
   }, [creationMode, codeWithBlanks]);
 
-  const handleFinish = () => {
-    if (!explanation.trim()) {
+  // beforeunloadイベントリスナーを追加（未保存警告）
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && !isSaving) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges, isSaving]);
+
+  const handleFinish = async () => {
+    // バリデーション
+    const finalExplanation = creationMode === 'auto' ? explanation : manualExplanation;
+    const finalChoices = creationMode === 'auto' ? generatedQuiz?.choices : manualChoices;
+    const finalCodeWithBlanks = creationMode === 'auto' ? generatedQuiz?.codeWithBlanks : codeWithBlanks;
+
+    if (!finalExplanation || !finalExplanation.trim()) {
       alert('解説を入力してください');
       return;
     }
 
-    // TODO: 問題の保存・エクスポート機能を実装
-    alert('問題が完成しました！（保存機能は今後実装予定）');
+    if (!finalChoices || finalChoices.length === 0 || !finalChoices.every(c => c.text.trim())) {
+      alert('すべての選択肢を入力してください');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // 問題データを準備
+      const problemToSave: SaveProblemData = {
+        problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
+        code: problemData.code,
+        language: problemData.language,
+        learning_topic: learningTopic || null,
+        code_with_blanks: finalCodeWithBlanks || null,
+        choices: finalChoices,
+        explanation: finalExplanation,
+      };
+
+      // チャット履歴を準備
+      const creationHistory = chatService.getConversationHistory();
+      const explanationHistory = explanationChatService.getConversationHistory();
+
+      const chatHistories: ChatHistoryInput[] = [];
+
+      if (creationHistory.length > 0) {
+        chatHistories.push({
+          chat_type: 'creation',
+          messages: creationHistory,
+        });
+      }
+
+      if (explanationHistory.length > 0) {
+        chatHistories.push({
+          chat_type: 'explanation',
+          messages: explanationHistory,
+        });
+      }
+
+      // Supabaseに保存
+      const result = await saveProblem(problemToSave, chatHistories);
+
+      if (result.success) {
+        setHasUnsavedChanges(false);
+        alert('問題が保存されました！');
+        router.push('/dashboard');
+      } else {
+        alert(`保存に失敗しました: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('保存中にエラーが発生しました');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -263,6 +347,7 @@ const QuizCreationPage: React.FC = () => {
             >
               ← 戻る
             </button>
+            <BackToDashboardButton />
           </div>
         </div>
         
@@ -481,15 +566,19 @@ const QuizCreationPage: React.FC = () => {
 
           {/* モード別のコンテンツ */}
           {creationMode === 'auto' ? (
-            <AutoGenerationMode 
+            <AutoGenerationMode
               learningTopic={learningTopic}
               onQuizGenerated={handleQuizGenerated}
               onGeneratingStateChange={setIsGenerating}
+              explanation={explanation}
+              onExplanationChange={setExplanation}
             />
           ) : (
-            <ManualCreationMode 
+            <ManualCreationMode
               learningTopic={learningTopic}
               onManualDataChange={setHasManualData}
+              onChoicesChange={setManualChoices}
+              onExplanationChange={setManualExplanation}
             />
           )}
 
@@ -498,18 +587,19 @@ const QuizCreationPage: React.FC = () => {
             <div style={{ textAlign: 'center', marginTop: '20px' }}>
               <button
                 onClick={handleFinish}
+                disabled={isSaving}
                 style={{
                   padding: '12px 30px',
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: isSaving ? '#ccc' : '#4CAF50',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
-                  cursor: 'pointer',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
                   fontSize: '16px',
                   fontWeight: 'bold'
                 }}
               >
-                問題作成完了
+                {isSaving ? '保存中...' : '問題作成完了'}
               </button>
             </div>
           )}
@@ -544,8 +634,7 @@ const QuizCreationPage: React.FC = () => {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
                 onClick={() => {
-                  // 履歴クリア処理
-                  localStorage.removeItem('explanationChatMessages');
+                  // 履歴クリア処理（メモリ内の履歴をクリア）
                   window.location.reload();
                 }}
                 style={{

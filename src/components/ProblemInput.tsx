@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import LogoutButton from '@/components/LogoutButton'; // 追加
+import BackToDashboardButton from './BackToDashboardButton';
 
 interface ProblemInputProps {
   onProblemChange: (problem: string) => void;
@@ -26,14 +28,19 @@ export const ProblemInput: React.FC<ProblemInputProps> = ({ onProblemChange, ini
       flexDirection: 'column',
       borderBottom: '1px solid #ddd'
     }}>
+      {/* ラベルとボタンを横並びに */}
       <div style={{ 
         padding: '12px 16px', 
         backgroundColor: '#f8f9fa',
         borderBottom: '1px solid #ddd',
         fontWeight: 'bold',
-        fontSize: '14px'
+        fontSize: '14px',
+        display: 'flex',
+        justifyContent: 'space-between', // 左右に分ける
+        alignItems: 'center'
       }}>
-        問題文
+        <span>問題文</span>
+        <BackToDashboardButton />
       </div>
       <textarea
         value={problem}

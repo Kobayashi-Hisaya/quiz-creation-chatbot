@@ -362,56 +362,10 @@ class ChatService {
             // AIの返答を履歴に追加
             const aiMessage = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$ai$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AIMessage"](response.content);
             this.conversationHistory.push(aiMessage);
-            // localStorageに保存
-            this.saveConversationHistory();
             return response.content;
         } catch (error) {
             console.error("Error sending message:", error);
             throw new Error("Failed to send message. Please check your API key and try again.");
-        }
-    }
-    // localStorageから対話履歴を読み込む
-    loadConversationHistory() {
-        try {
-            const stored = localStorage.getItem("conversationHistory");
-            if (stored) {
-                const historyData = JSON.parse(stored);
-                return historyData.map((msg)=>{
-                    switch(msg.type){
-                        case "system":
-                            return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"](msg.content);
-                        case "human":
-                            return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$human$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["HumanMessage"](msg.content);
-                        case "ai":
-                            return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$ai$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AIMessage"](msg.content);
-                        default:
-                            return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"](this.baseSystemMessage);
-                    }
-                });
-            }
-        } catch (error) {
-            console.error("Failed to load conversation history from localStorage:", error);
-        }
-        return [
-            new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"](this.getCurrentSystemMessage())
-        ];
-    }
-    // localStorageに対話履歴を保存する
-    saveConversationHistory() {
-        try {
-            const historyData = this.conversationHistory.map((msg)=>{
-                let type = "system";
-                if (msg instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$human$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["HumanMessage"]) type = "human";
-                else if (msg instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$ai$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AIMessage"]) type = "ai";
-                else if (msg instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"]) type = "system";
-                return {
-                    type,
-                    content: msg.content
-                };
-            });
-            localStorage.setItem("conversationHistory", JSON.stringify(historyData));
-        } catch (error) {
-            console.error("Failed to save conversation history to localStorage:", error);
         }
     }
     // 対話履歴をクリアするメソッド
@@ -419,13 +373,25 @@ class ChatService {
         this.conversationHistory = [
             new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"](this.getCurrentSystemMessage())
         ];
-        this.saveConversationHistory();
     }
     // 対話履歴を取得するメソッド（デバッグ用）
     getHistory() {
         return [
             ...this.conversationHistory
         ];
+    }
+    // 対話履歴をSupabase保存用の形式で取得
+    getConversationHistory() {
+        return this.conversationHistory.map((msg)=>{
+            let role = 'system';
+            if (msg instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$human$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["HumanMessage"]) role = 'user';
+            else if (msg instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$ai$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AIMessage"]) role = 'assistant';
+            else if (msg instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"]) role = 'system';
+            return {
+                role,
+                content: msg.content
+            };
+        });
     }
     constructor(){
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$swc$2f$helpers$2f$esm$2f$_define_property$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["_"])(this, "model", void 0);
@@ -439,30 +405,12 @@ class ChatService {
             model: "gpt-4",
             temperature: 0.7
         });
-        // ベースのシステムメッセージ
-        //     this.baseSystemMessage = `
-        //     # 役割
-        //     あなたは，親しみのあるプロのプログラミング教員です．
-        //     # 命令
-        //     プログラミングに関連する問題を作ることを通して、**{LEARNING_TOPIC}**の考え方を用いて日常生活の問題解決の方法を考えられるようになりたいです。
-        //     あなたは私が提示したテーマについて，**{LEARNING_TOPIC}**によって解決できる問題を作成するための質問を私に投げかけてください．
-        //     例えば，「そのテーマではどのようなデータが数値として記録されるのですか？」「そのデータはどのように計算されるのですか？」などです．
-        //     私はプログラミング初心者なので，親切で分かりやすい説明を心がけて下さい．
-        //     # 問題について
-        //     - 回答は JavaScript のソースコード
-        //     - 多くても 20 行ほどの量に抑える
-        //     - 私が興味のある分野と関連している
-        //     # 対話上の注意
-        //     - 出力はマークダウン形式で行ってください。
-        //     - あなたが 1 から問題や答えを示すのではなく、私自身が答えを導けるようにヒントや質問を投げかけてください。
-        //     - **{LEARNING_TOPIC}**がどのような条件の時に適用できるのかということを常に私に考えさせてください。
-        //     - 対話を進める中であなたが必要だと思った場合は，私にどんどん質問して下さい．
-        //     - 質問は 1 つの対話につき 1 つにして下さい．
-        // `;
-        this.baseSystemMessage = '\n    私はuser，あなたはassistantです．以下のやり取りの通りに対話を進めて．\n    user: 野球に関する問題を作成したいです\n    assistant: それは素晴らしいアイデアですね！ 野球は多くの数値データが存在するので、制御構造を適用するのに適しています。それではまず、野球に関連するどの種類のデータに興味がありますか？例えば、選手の成績、試合結果、チームの順位などがありますね。\n    user: チーム打率とかですかね\n    assistant: なるほど，いいですね！それでは、チーム打率を計算するためには、どのようなデータが必要だと思いますか？また、それらのデータはどのように計算されると思いますか？\n    user: 各選手の打数と安打数です．それぞれ合計して，安打数/打数で計算するのがいいと思います\n    assistant: それは正解です！チーム打率は、全選手の安打数を全選手の打数で割ることで計算されます。それでは、プログラム上でこれをどのように実装するか考えてみましょう。打数と安打数のデータをどのように格納しますか？リストや辞書などが使えますね。\n    user: 辞書ってなんですか？\n    assistant: 辞書とは、Pythonのデータ構造の一つで、キーと値のペアを格納するものです。例えば、各選手の名前をキーとし、その選手の打数と安打数を値とする辞書を作成することができます。以下に一例を示します。\n    players = [\n    {"name": "選手A", "hits": 100, "at_bats": 300},\n    {"name": "選手B", "hits": 110, "at_bats": 350},\n    {"name": "選手C", "hits": 120, "at_bats": 400},\n    # 以降、選手が続く...\n    ]\n\n    ';
+        this.baseSystemMessage = "\n        # 役割\n        あなたは，親しみのあるプロのプログラミング教員です．\n\n        # 命令\n        プログラミングに関連する問題を作ることを通して、**{LEARNING_TOPIC}**の考え方を用いて日常生活の問題解決の方法を考えられるようになりたいです。\n        あなたは私が提示したテーマについて，**{LEARNING_TOPIC}**によって解決できる問題を作成するための質問を私に投げかけてください．\n        例えば，「そのテーマではどのようなデータが数値として記録されるのですか？」「そのデータはどのように計算されるのですか？」などです．\n        私はプログラミング初心者なので，親切で分かりやすい説明を心がけて下さい．\n\n        # 問題について\n        - 回答は JavaScript のソースコード\n        - 多くても 20 行ほどの量に抑える\n        - 私が興味のある分野と関連している\n\n        # 対話上の注意\n        - 出力はマークダウン形式で行ってください。\n        - あなたが 1 から問題や答えを示すのではなく、私自身が答えを導けるようにヒントや質問を投げかけてください。\n        - **{LEARNING_TOPIC}**がどのような条件の時に適用できるのかということを常に私に考えさせてください。\n        - 対話を進める中であなたが必要だと思った場合は，私にどんどん質問して下さい．\n        - 質問は 1 つの対話につき 1 つにして下さい．\n    ";
         this.currentLearningTopic = "制御構造";
-        // 対話履歴を初期化（localStorageから復元またはシステムメッセージから開始）
-        this.conversationHistory = this.loadConversationHistory();
+        // 対話履歴をメモリ内で初期化
+        this.conversationHistory = [
+            new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$langchain$2f$core$2f$dist$2f$messages$2f$system$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SystemMessage"](this.getCurrentSystemMessage())
+        ];
     }
 }
 const chatService = new ChatService();
@@ -1476,21 +1424,22 @@ const HomePage = ()=>{
     _s();
     const { problemData, setLearningTopic } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$contexts$2f$ProblemContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useProblem"])();
     const [showTopicSelector, setShowTopicSelector] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [hasSelectedTopic, setHasSelectedTopic] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "HomePage.useEffect": ()=>{
-            const hasSelectedTopic = localStorage.getItem('hasSelectedLearningTopic');
             if (!hasSelectedTopic || !problemData.learningTopic) {
                 setShowTopicSelector(true);
             }
         }
     }["HomePage.useEffect"], [
+        hasSelectedTopic,
         problemData.learningTopic
     ]);
     const handleTopicSelect = (topic)=>{
         setLearningTopic(topic);
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$services$2f$chatService$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["chatService"].setLearningTopic(topic);
-        localStorage.setItem('hasSelectedLearningTopic', 'true');
+        setHasSelectedTopic(true);
         setShowTopicSelector(false);
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1551,7 +1500,7 @@ const HomePage = ()=>{
         columnNumber: 5
     }, ("TURBOPACK compile-time value", void 0));
 };
-_s(HomePage, "9SRArNos0UQQxgE+6nSCWqtCmpo=", false, function() {
+_s(HomePage, "YpXM4bRBuumeuUdeBlH3M2830CM=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$contexts$2f$ProblemContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useProblem"]
     ];

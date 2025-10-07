@@ -256,33 +256,14 @@ const ProblemContext = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$proj
 const ProblemProvider = (param)=>{
     let { children } = param;
     _s();
-    // localStorageから初期データを読み込み
-    const loadFromStorage = ()=>{
-        try {
-            const stored = localStorage.getItem('problemData');
-            if (stored) {
-                return JSON.parse(stored);
-            }
-        } catch (error) {
-            console.error('Failed to load problem data from localStorage:', error);
-        }
-        return {
-            problem: '',
-            code: '',
-            language: 'typescript',
-            learningTopic: '制御構造'
-        };
+    // 初期データ（メモリ内のみで管理）
+    const initialData = {
+        problem: '',
+        code: '',
+        language: 'typescript',
+        learningTopic: '制御構造'
     };
-    const [problemData, setProblemDataState] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(loadFromStorage);
-    // localStorageに保存する関数
-    const setProblemData = (data)=>{
-        setProblemDataState(data);
-        try {
-            localStorage.setItem('problemData', JSON.stringify(data));
-        } catch (error) {
-            console.error('Failed to save problem data to localStorage:', error);
-        }
-    };
+    const [problemData, setProblemData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(initialData);
     // 学習項目のみを更新する関数
     const setLearningTopic = (topic)=>{
         const updatedData = {
@@ -300,11 +281,11 @@ const ProblemProvider = (param)=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/ProblemContext.tsx",
-        lineNumber: 59,
+        lineNumber: 39,
         columnNumber: 5
     }, ("TURBOPACK compile-time value", void 0));
 };
-_s(ProblemProvider, "PvbxoCDBXh8VhzdmRappcQ4Gw2I=");
+_s(ProblemProvider, "QfWPxWJ9iwkaG4RxktmvcJDlMw4=");
 _c = ProblemProvider;
 const useProblem = ()=>{
     _s1();

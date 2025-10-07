@@ -37,55 +37,9 @@ class ExplanationChatService {
     - 学習者の視点に立った解説作成を推奨してください
     - 質問があれば遠慮なく聞いてください
 `;
-    
-    // 対話履歴を初期化
-    this.conversationHistory = this.loadConversationHistory();
-  }
 
-  // localStorageから対話履歴を読み込む
-  private loadConversationHistory(): BaseMessage[] {
-    try {
-      const stored = localStorage.getItem('explanationChatHistory');
-      if (stored) {
-        type HistoryItem = { type: "system" | "human" | "ai"; content: string };
-        const historyData: HistoryItem[] = JSON.parse(stored);
-        return historyData.map((msg) => {
-          switch (msg.type) {
-            case 'system':
-              return new SystemMessage(msg.content);
-            case 'human':
-              return new HumanMessage(msg.content);
-            case 'ai':
-              return new AIMessage(msg.content);
-            default:
-              return new SystemMessage(this.baseSystemMessage);
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load explanation chat history from localStorage:', error);
-    }
-    return [new SystemMessage(this.baseSystemMessage)];
-  }
-
-  // localStorageに対話履歴を保存する
-  private saveConversationHistory(): void {
-    try {
-      const historyData = this.conversationHistory.map(msg => {
-        let type = 'system';
-        if (msg instanceof HumanMessage) type = 'human';
-        else if (msg instanceof AIMessage) type = 'ai';
-        else if (msg instanceof SystemMessage) type = 'system';
-        
-        return {
-          type,
-          content: msg.content
-        };
-      });
-      localStorage.setItem('explanationChatHistory', JSON.stringify(historyData));
-    } catch (error) {
-      console.error('Failed to save explanation chat history to localStorage:', error);
-    }
+    // 対話履歴をメモリ内で初期化
+    this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
   }
 
   async sendMessage(message: string): Promise<string> {
@@ -96,13 +50,10 @@ class ExplanationChatService {
 
       // 現在の対話履歴全体でAPIを呼び出し
       const response = await this.model.invoke(this.conversationHistory);
-      
+
       // AIの返答を履歴に追加
       const aiMessage = new AIMessage(response.content as string);
       this.conversationHistory.push(aiMessage);
-
-      // localStorageに保存
-      this.saveConversationHistory();
 
       return response.content as string;
     } catch (error) {
@@ -114,13 +65,26 @@ class ExplanationChatService {
   // 対話履歴をクリアするメソッド
   clearHistory(): void {
     this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
-    this.saveConversationHistory();
-    localStorage.removeItem('explanationChatMessages');
   }
 
   // 対話履歴を取得するメソッド（デバッグ用）
   getHistory(): BaseMessage[] {
     return [...this.conversationHistory];
+  }
+
+  // 対話履歴をSupabase保存用の形式で取得
+  getConversationHistory(): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
+    return this.conversationHistory.map((msg) => {
+      let role: 'user' | 'assistant' | 'system' = 'system';
+      if (msg instanceof HumanMessage) role = 'user';
+      else if (msg instanceof AIMessage) role = 'assistant';
+      else if (msg instanceof SystemMessage) role = 'system';
+
+      return {
+        role,
+        content: msg.content as string,
+      };
+    });
   }
 }
 

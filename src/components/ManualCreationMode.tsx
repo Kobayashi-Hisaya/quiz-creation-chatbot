@@ -4,21 +4,31 @@ import type { QuizChoice } from '../types/quiz';
 interface ManualCreationModeProps {
   learningTopic: string;
   onManualDataChange?: (hasData: boolean) => void;
+  onChoicesChange?: (choices: QuizChoice[]) => void;
+  onExplanationChange?: (explanation: string) => void;
 }
 
-export const ManualCreationMode: React.FC<ManualCreationModeProps> = ({ onManualDataChange }) => {
+export const ManualCreationMode: React.FC<ManualCreationModeProps> = ({
+  onManualDataChange,
+  onChoicesChange,
+  onExplanationChange
+}) => {
   const [choices, setChoices] = useState<QuizChoice[]>([
     { id: 'A', text: '', isCorrect: true },
     { id: 'B', text: '', isCorrect: false },
     { id: 'C', text: '', isCorrect: false },
     { id: 'D', text: '', isCorrect: false }
   ]);
-
+  const [explanation, setExplanation] = useState('');
 
   const handleChoiceChange = (index: number, text: string) => {
     const updatedChoices = [...choices];
     updatedChoices[index].text = text;
     setChoices(updatedChoices);
+  };
+
+  const handleExplanationChange = (text: string) => {
+    setExplanation(text);
   };
 
   // 編集内容の変更を親に通知
@@ -28,6 +38,20 @@ export const ManualCreationMode: React.FC<ManualCreationModeProps> = ({ onManual
       onManualDataChange(hasChoiceChanges);
     }
   }, [choices, onManualDataChange]);
+
+  // 選択肢の変更を親に通知
+  useEffect(() => {
+    if (onChoicesChange) {
+      onChoicesChange(choices);
+    }
+  }, [choices, onChoicesChange]);
+
+  // 解説の変更を親に通知
+  useEffect(() => {
+    if (onExplanationChange) {
+      onExplanationChange(explanation);
+    }
+  }, [explanation, onExplanationChange]);
 
   return (
     <div style={{ 
@@ -89,6 +113,8 @@ export const ManualCreationMode: React.FC<ManualCreationModeProps> = ({ onManual
           解説
         </h4>
         <textarea
+          value={explanation}
+          onChange={(e) => handleExplanationChange(e.target.value)}
           placeholder="問題の解説を入力してください..."
           style={{
             width: '100%',

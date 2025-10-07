@@ -90,7 +90,7 @@ const LoginPage = ()=>{
                                 color: '#2c3e50',
                                 marginBottom: '12px'
                             },
-                            children: "プログラミング問題作成ツール"
+                            children: "作問学習支援ツール"
                         }, void 0, false, {
                             fileName: "[project]/app/login/page.tsx",
                             lineNumber: 50,
@@ -102,7 +102,7 @@ const LoginPage = ()=>{
                                 color: '#666',
                                 lineHeight: '1.6'
                             },
-                            children: "コードの空欄問題を作成するための教育支援アプリケーションです"
+                            children: "プログラミングの問題を作成するための教育支援アプリケーションです"
                         }, void 0, false, {
                             fileName: "[project]/app/login/page.tsx",
                             lineNumber: 58,
@@ -120,7 +120,7 @@ const LoginPage = ()=>{
                     style: {
                         width: '100%',
                         padding: '14px 24px',
-                        backgroundColor: isLoading ? '#ccc' : '#4285f4',
+                        backgroundColor: isLoading ? '#ccc' : '#cfcfcfff',
                         color: 'white',
                         border: 'none',
                         borderRadius: '6px',
@@ -136,12 +136,12 @@ const LoginPage = ()=>{
                     },
                     onMouseOver: (e)=>{
                         if (!isLoading) {
-                            e.currentTarget.style.backgroundColor = '#357ae8';
+                            e.currentTarget.style.backgroundColor = '#a1a1a1ff';
                         }
                     },
                     onMouseOut: (e)=>{
                         if (!isLoading) {
-                            e.currentTarget.style.backgroundColor = '#4285f4';
+                            e.currentTarget.style.backgroundColor = '#cfcfcfff';
                         }
                     },
                     children: [

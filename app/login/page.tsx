@@ -53,14 +53,14 @@ const LoginPage: React.FC = () => {
             color: '#2c3e50',
             marginBottom: '12px'
           }}>
-            プログラミング問題作成ツール
+            作問学習支援ツール
           </h1>
           <p style={{
             fontSize: '15px',
             color: '#666',
             lineHeight: '1.6'
           }}>
-            コードの空欄問題を作成するための教育支援アプリケーションです
+            プログラミングの問題を作成するための教育支援アプリケーションです
           </p>
         </div>
 
@@ -71,7 +71,7 @@ const LoginPage: React.FC = () => {
           style={{
             width: '100%',
             padding: '14px 24px',
-            backgroundColor: isLoading ? '#ccc' : '#4285f4',
+            backgroundColor: isLoading ? '#ccc' : '#cfcfcfff',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
@@ -87,12 +87,12 @@ const LoginPage: React.FC = () => {
           }}
           onMouseOver={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.backgroundColor = '#357ae8';
+              e.currentTarget.style.backgroundColor = '#a1a1a1ff';
             }
           }}
           onMouseOut={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.backgroundColor = '#4285f4';
+              e.currentTarget.style.backgroundColor = '#cfcfcfff';
             }
           }}
         >

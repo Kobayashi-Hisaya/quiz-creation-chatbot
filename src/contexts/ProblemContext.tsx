@@ -19,35 +19,15 @@ interface ProblemContextType {
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
 
 export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // localStorageから初期データを読み込み
-  const loadFromStorage = (): ProblemData => {
-    try {
-      const stored = localStorage.getItem('problemData');
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Failed to load problem data from localStorage:', error);
-    }
-    return {
-      problem: '',
-      code: '',
-      language: 'typescript',
-      learningTopic: '制御構造'
-    };
+  // 初期データ（メモリ内のみで管理）
+  const initialData: ProblemData = {
+    problem: '',
+    code: '',
+    language: 'typescript',
+    learningTopic: '制御構造'
   };
 
-  const [problemData, setProblemDataState] = useState<ProblemData>(loadFromStorage);
-
-  // localStorageに保存する関数
-  const setProblemData = (data: ProblemData) => {
-    setProblemDataState(data);
-    try {
-      localStorage.setItem('problemData', JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to save problem data to localStorage:', error);
-    }
-  };
+  const [problemData, setProblemData] = useState<ProblemData>(initialData);
 
   // 学習項目のみを更新する関数
   const setLearningTopic = (topic: LearningTopic) => {
