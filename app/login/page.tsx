@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
   // すでにログイン済みの場合はダッシュボードにリダイレクト
   useEffect(() => {
     if (user) {
-      router.push('/dashboard');
+      router.push('/create-quiz');
     }
   }, [user, router]);
 
@@ -38,7 +38,7 @@ const LoginPage: React.FC = () => {
       padding: '20px'
     }}>
       <div style={{
-        maxWidth: '1000px',
+        maxWidth: '500px',
         width: '100%',
         backgroundColor: 'white',
         padding: '50px 60px',
