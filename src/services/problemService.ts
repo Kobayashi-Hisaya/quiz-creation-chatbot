@@ -25,22 +25,15 @@ export const saveProblem = async (
   chatHistories: ChatHistoryInput[]
 ): Promise<{ success: boolean; problemId?: string; error?: string }> => {
   try {
-    console.log('🔍 saveProblem called with:', { problemData, chatHistories });
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const user = session?.user;
-
-    console.log('👤 User from Supabase:', user);
-
-    if (!user) {
-      console.error('❌ No authenticated user found');
-      return { success: false, error: '認証されていません。ログインが必要です。' };
+    // 認証されたユーザーを取得
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return { success: false, error: '認証が必要です。ログインしてください。' };
     }
 
-    // 問題を保存
+    // 問題データを保存
     const { data: problem, error: problemError } = await supabase
       .from('problems')
       .insert([
@@ -53,11 +46,9 @@ export const saveProblem = async (
       .single();
 
     if (problemError) {
-      console.error('❌ Problem save error:', problemError);
+      console.error('Problem save error:', problemError);
       return { success: false, error: `問題の保存に失敗しました: ${problemError.message}` };
     }
-
-    console.log('✅ Problem saved successfully:', problem);
 
     // チャット履歴を保存
     const chatHistoryInserts = chatHistories.map((history) => ({
@@ -72,20 +63,16 @@ export const saveProblem = async (
       .insert(chatHistoryInserts);
 
     if (chatError) {
-      console.error('❌ Chat history save error:', chatError);
-      // 問題は保存されたがチャット履歴の保存に失敗
+      console.error('Chat history save error:', chatError);
       return {
         success: false,
         error: `チャット履歴の保存に失敗しました: ${chatError.message}`,
       };
     }
 
-    console.log('✅ Chat histories saved successfully');
-    console.log('🎉 All data saved! Problem ID:', problem.id);
-
     return { success: true, problemId: problem.id };
   } catch (error) {
-    console.error('❌ Save problem error:', error);
+    console.error('Save problem error:', error);
     const errorMessage = error instanceof Error ? error.message : '予期しないエラーが発生しました';
     return { success: false, error: errorMessage };
   }

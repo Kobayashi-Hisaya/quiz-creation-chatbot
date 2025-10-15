@@ -92,9 +92,9 @@ const QuizCreationPage: React.FC = () => {
 
   const getLanguageLabel = (language: string): string => {
     const languageMap: Record<string, string> = {
+      python: 'Python',
       typescript: 'TypeScript',
       javascript: 'JavaScript',
-      python: 'Python',
       java: 'Java',
       cpp: 'C++',
       c: 'C',

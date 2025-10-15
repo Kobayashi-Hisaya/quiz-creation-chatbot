@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { getProblems } from '@/services/problemService';
+import { supabase } from '@/lib/supabaseClient';
 import type { Problem } from '@/types/database';
 
 const DashboardPageContent: React.FC = () => {
@@ -12,6 +13,34 @@ const DashboardPageContent: React.FC = () => {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // URLクリーンアップ処理（認証コールバック後のトークン削除）
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      // URLにハッシュ（認証トークン）が含まれているかチェック
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        console.log('🔧 Cleaning up authentication tokens from URL...');
+        
+        try {
+          // Supabaseセッションを確立（URLのトークンを使用）
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (data.session) {
+            console.log('✅ Session established, cleaning URL...');
+            // URLからハッシュを削除してクリーンなURLにする
+            window.history.replaceState({}, document.title, window.location.pathname);
+            console.log('✅ URL cleaned up successfully');
+          } else if (error) {
+            console.error('❌ Session establishment failed:', error);
+          }
+        } catch (error) {
+          console.error('❌ Auth callback handling failed:', error);
+        }
+      }
+    };
+
+    handleAuthCallback();
+  }, []); // 一度だけ実行
 
   useEffect(() => {
     const fetchProblems = async () => {
