@@ -1,24 +1,10 @@
-import { ChatOpenAI } from "@langchain/openai";
 import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 
-const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-
 class ExplanationChatService {
-  private model: ChatOpenAI;
   private baseSystemMessage: string;
   private conversationHistory: BaseMessage[];
 
   constructor() {
-    if (!OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is required. Please set VITE_OPENAI_API_KEY in your environment variables.");
-    }
-
-    this.model = new ChatOpenAI({
-      apiKey: OPENAI_API_KEY,
-      model: "gpt-4",
-      temperature: 0.7,
-    });
-
     // 解説相談用のシステムメッセージ
     this.baseSystemMessage = `
     # 役割
@@ -48,17 +34,45 @@ class ExplanationChatService {
       const userMessage = new HumanMessage(message);
       this.conversationHistory.push(userMessage);
 
-      // 現在の対話履歴全体でAPIを呼び出し
-      const response = await this.model.invoke(this.conversationHistory);
+      // メッセージを API エンドポイント用の形式に変換
+      const messages = this.conversationHistory.map((msg) => {
+        if (msg instanceof SystemMessage) {
+          return { role: 'system', content: msg.content };
+        } else if (msg instanceof HumanMessage) {
+          return { role: 'user', content: msg.content };
+        } else if (msg instanceof AIMessage) {
+          return { role: 'assistant', content: msg.content };
+        }
+        return { role: 'user', content: msg.content };
+      });
+
+      // 自分の API エンドポイントを呼び出し
+      const response = await fetch('/api/explanation-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages,
+          model: 'gpt-4',
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       // AIの返答を履歴に追加
-      const aiMessage = new AIMessage(response.content as string);
+      const aiMessage = new AIMessage(data.content as string);
       this.conversationHistory.push(aiMessage);
 
-      return response.content as string;
+      return data.content as string;
     } catch (error) {
       console.error("Error sending message:", error);
-      throw new Error("Failed to send message. Please check your API key and try again.");
+      throw new Error("Failed to send message. Please try again.");
     }
   }
 

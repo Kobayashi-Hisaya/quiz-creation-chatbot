@@ -1,8 +1,7 @@
 {
-  "/create-mcq/page": "app/create-mcq/page.js",
+  "/api/chat/route": "app/api/chat/route.js",
   "/create-quiz/page": "app/create-quiz/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/favicon.ico/route": "app/favicon.ico/route.js",
   "/login/page": "app/login/page.js",
-  "/problem/[id]/page": "app/problem/[id]/page.js"
+  "/page": "app/page.js"
 }
