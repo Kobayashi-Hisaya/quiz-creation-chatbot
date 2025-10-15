@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+## todo
+- ユーザーID,PWでの簡単な認証へ変更
+- グループ分けして、同グループの学生が登録した問題は確認・コメントできるようにする
+- プロンプトの洗練
+
+
+## 現状見つかっているバグ
+- ~~問題登録ボタンがうまく動作しないことがある~~
+
+→ セッション状態の保持、LocalStorageとSessionStorageの削除によって一旦は解決。本番環境でもやってみる。
+
+- タブを変更して戻ってくると画面表示が切り替わってしまう
+- システムプロンプトが履歴に表示されてしまう
