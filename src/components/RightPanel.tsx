@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ProblemInput } from "./ProblemInput";
-import { CodeEditor } from "./CodeEditor";
+import { DataSpreadsheetPanel } from "./DataSpreadsheetPanel";
 import { useProblem } from "../contexts/ProblemContext";
+import type { DataProblemTemplateData } from "@/services/gasClientService";
 
 const DEFAULT_CODE_TEMPLATES: Record<string, string> = {
   typescript: "// ここにコードを書いてください\nfunction solution() {\n  \n}\n",
@@ -25,59 +25,71 @@ const DEFAULT_CODE_TEMPLATES: Record<string, string> = {
   shell: '#!/bin/bash\n# ここにシェルスクリプトを書いてください\necho "Hello World"\n',
 };
 
-export const RightPanel: React.FC = () => {
+interface RightPanelProps {
+  onSpreadsheetDataChange?: (data: DataProblemTemplateData) => void;
+  onSpreadsheetCreated?: (spreadsheetId: string, embedUrl: string) => void;
+  onGetCurrentDataRef?: (getCurrentData: () => Promise<DataProblemTemplateData | null>) => void;
+}
+
+export const RightPanel: React.FC<RightPanelProps> = ({ 
+  onSpreadsheetDataChange, 
+  onSpreadsheetCreated,
+  onGetCurrentDataRef 
+}) => {
   const router = useRouter();
   const { problemData, setProblemData } = useProblem();
-  
-  // ProblemContextから初期値を設定
-  const [language, setLanguage] = useState(problemData.language || "typescript");
-  const [code, setCode] = useState(problemData.code || DEFAULT_CODE_TEMPLATES[problemData.language || "typescript"]);
-  const [problem, setProblem] = useState(problemData.problem || "");
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
 
-  const handleProblemChange = (newProblem: string) => {
-    setProblem(newProblem);
-    // リアルタイムでlocalStorageに保存
+  // データ整理問題スプレッドシートからのデータ変更を処理
+  const handleSheetsDataChange = (data: DataProblemTemplateData) => {
+    // スプレッドシートのデータをProblemContextに反映
     setProblemData({
-      problem: newProblem,
-      code,
-      language,
-      learningTopic: problemData.learningTopic,
+      problem: data.problemText || '',
+      code: '', // データ整理問題では不要
+      language: 'data_analysis', // 新しいカテゴリ
+      learningTopic: 'data_analysis', // データ整理固定
     });
+    
+    // 親コンポーネント（HomePage）にもデータ変更を通知
+    if (onSpreadsheetDataChange) {
+      onSpreadsheetDataChange(data);
+    }
   };
 
-  const handleCodeChange = (newCode: string | undefined) => {
-    const updatedCode = newCode || "";
-    setCode(updatedCode);
-    // リアルタイムでlocalStorageに保存
-    setProblemData({
-      problem,
-      code: updatedCode,
-      language,
-      learningTopic: problemData.learningTopic,
-    });
+  // スプレッドシート作成時の処理
+  const handleSpreadsheetCreated = (sheetId: string, embedUrl: string) => {
+    setSpreadsheetId(sheetId);
+    console.log('Spreadsheet created:', sheetId, embedUrl);
+    
+    // 親コンポーネント（HomePage）にも通知
+    if (onSpreadsheetCreated) {
+      onSpreadsheetCreated(sheetId, embedUrl);
+    }
   };
 
-  const handleLanguageChange = (newLanguage: string) => {
-    const newCode = DEFAULT_CODE_TEMPLATES[newLanguage] || "// Write your code here\n";
-    setLanguage(newLanguage);
-    setCode(newCode);
-    // リアルタイムでlocalStorageに保存
-    setProblemData({
-      problem,
-      code: newCode,
-      language: newLanguage,
-      learningTopic: problemData.learningTopic,
-    });
+  // エラーハンドリング
+  const handleSheetsError = (errorMessage: string) => {
+    setError(errorMessage);
   };
 
   const handleTransitionToQuiz = () => {
-    setProblemData({
-      problem,
-      code,
-      language,
-      learningTopic: problemData.learningTopic,
-    });
+    // データが入力されているかチェック
+    if (!problemData.problem?.trim()) {
+      alert('問題文を入力してからクイズ作成に進んでください');
+      return;
+    }
 
+    if (!spreadsheetId) {
+      alert('スプレッドシートが作成されていません');
+      return;
+    }
+
+    // スプレッドシートIDをセッションストレージに保存
+    sessionStorage.setItem('currentSpreadsheetId', spreadsheetId);
+
+    setIsTransitioning(true);
     // Next.jsのルーターで遷移
     router.push("/create-mcq");
   };
@@ -92,45 +104,91 @@ export const RightPanel: React.FC = () => {
         borderLeft: "1px solid #ddd",
       }}
     >
-      <ProblemInput onProblemChange={handleProblemChange} initialValue={problem} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-          <CodeEditor value={code} onChange={handleCodeChange} language={language} onLanguageChange={handleLanguageChange} />
+      {/* エラー表示 */}
+      {error && (
+        <div style={{
+          padding: "12px",
+          backgroundColor: "#fff5f5",
+          border: "1px solid #fed7d7",
+          color: "#c53030",
+          fontSize: "14px",
+          margin: "8px"
+        }}>
+          {error}
         </div>
-        <div
+      )}
+
+      {/* データ整理問題スプレッドシート パネル */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <DataSpreadsheetPanel 
+          onDataChange={handleSheetsDataChange}
+          onSpreadsheetCreated={handleSpreadsheetCreated}
+          onError={handleSheetsError}
+          onGetCurrentDataRef={onGetCurrentDataRef}
+        />
+      </div>
+
+      {/* 現在のデータ表示（デバッグ用） */}
+      <div style={{
+        padding: "12px",
+        backgroundColor: "#f8f9fa",
+        borderTop: "1px solid #ddd",
+        fontSize: "12px",
+        color: "#666"
+      }}>
+        <div><strong>問題種別:</strong> データ整理・表操作問題</div>
+        <div><strong>スプレッドシートID:</strong> {spreadsheetId ? `${spreadsheetId.slice(0, 20)}...` : '作成中'}</div>
+        <div><strong>問題文:</strong> {problemData.problem ? `${problemData.problem.slice(0, 50)}...` : '未入力'}</div>
+      </div>
+
+      {/* フッター */}
+      <div
+        style={{
+          padding: "16px",
+          backgroundColor: "#f8f9fa",
+          borderTop: "1px solid #ddd",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexShrink: 0,
+          minHeight: "50px",
+        }}
+      >
+        <div style={{ fontSize: "12px", color: "#666" }}>
+          💡 スプレッドシートで問題文とデータ操作内容を入力してください（メッセージ送信時に最新データを自動取得）
+        </div>
+        
+        <button
+          onClick={handleTransitionToQuiz}
+          disabled={isTransitioning || !problemData.problem?.trim() || !spreadsheetId}
           style={{
-            padding: "16px",
-            backgroundColor: "#f8f9fa",
-            borderTop: "1px solid #ddd",
-            display: "flex",
-            justifyContent: "flex-end",
-            flexShrink: 0,
-            minHeight: "50px",
+            padding: "12px 20px",
+            backgroundColor: isTransitioning || !problemData.problem?.trim() || !spreadsheetId 
+              ? "#ccc" 
+              : "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: isTransitioning || !problemData.problem?.trim() || !spreadsheetId 
+              ? "not-allowed" 
+              : "pointer",
+            fontSize: "14px",
+            fontWeight: "bold",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          }}
+          onMouseOver={(e) => {
+            if (!isTransitioning && problemData.problem?.trim() && spreadsheetId) {
+              e.currentTarget.style.backgroundColor = "#45a049";
+            }
+          }}
+          onMouseOut={(e) => {
+            if (!isTransitioning && problemData.problem?.trim() && spreadsheetId) {
+              e.currentTarget.style.backgroundColor = "#4CAF50";
+            }
           }}
         >
-          <button
-            onClick={handleTransitionToQuiz}
-            style={{
-              padding: "12px 20px",
-              backgroundColor: "#4CAF50",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "bold",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = "#45a049";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = "#4CAF50";
-            }}
-          >
-            選択式問題の作成に移る
-          </button>
-        </div>
+          {isTransitioning ? "移行中..." : "選択式問題の作成に移る"}
+        </button>
       </div>
     </div>
   );

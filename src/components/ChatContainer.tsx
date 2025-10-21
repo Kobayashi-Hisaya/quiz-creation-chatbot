@@ -3,8 +3,17 @@ import type { Message } from '../types/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { chatService } from '../services/chatService';
+import type { DataProblemTemplateData } from '../services/gasClientService';
 
-export const ChatContainer: React.FC = () => {
+interface ChatContainerProps {
+  spreadsheetData?: DataProblemTemplateData | null;
+  fetchLatestSpreadsheetData?: () => Promise<DataProblemTemplateData | null>;
+}
+
+export const ChatContainer: React.FC<ChatContainerProps> = ({ 
+  spreadsheetData, 
+  fetchLatestSpreadsheetData 
+}) => {
   // localStorageからメッセージ履歴を読み込む
   const loadMessages = (): Message[] => {
     try {
@@ -39,6 +48,13 @@ export const ChatContainer: React.FC = () => {
     saveMessages(messages);
   }, [messages]);
 
+  // スプレッドシートデータが変更されたらChatServiceに反映
+  useEffect(() => {
+    if (spreadsheetData) {
+      chatService.setSpreadsheetData(spreadsheetData);
+    }
+  }, [spreadsheetData]);
+
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -51,6 +67,14 @@ export const ChatContainer: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // 送信前に最新のスプレッドシートデータを取得
+      if (fetchLatestSpreadsheetData) {
+        const latestData = await fetchLatestSpreadsheetData();
+        if (latestData) {
+          chatService.setSpreadsheetData(latestData);
+        }
+      }
+
       const botResponse = await chatService.sendMessage(content);
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -61,15 +85,21 @@ export const ChatContainer: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error('Error sending message:', error);
+      
+      let errorContent = 'Sorry, I encountered an error. Please try again.';
+      if (error instanceof Error && (error.message.includes('spreadsheet') || error.message.includes('fetch'))) {
+        errorContent = 'スプレッドシートのデータ取得中にエラーが発生しました。再度お試しください。';
+      }
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorContent,
         sender: 'bot',
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, errorMessage]);
-      console.error('Failed to send message:', error);
     } finally {
       setIsLoading(false);
     }
