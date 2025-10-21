@@ -37,9 +37,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 
 ## todo
-- ユーザーID,PWでの簡単な認証へ変更
+- ~~ユーザーID,PWでの簡単な認証へ変更~~ ✅ 完了（メール/パスワード認証に変更）
 - グループ分けして、同グループの学生が登録した問題は確認・コメントできるようにする
 - プロンプトの洗練
+- 管理者用のユーザー作成画面の実装
 
 
 ## 現状見つかっているバグ

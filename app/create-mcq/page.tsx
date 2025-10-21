@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Editor from '@monaco-editor/react';
 import { useProblem } from '@/contexts/ProblemContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { CreationModeSelector } from '@/components/CreationModeSelector';
 import type { CreationMode } from '@/components/CreationModeSelector';
 import { AutoGenerationMode } from '@/components/AutoGenerationMode';
@@ -21,6 +22,21 @@ import BackToDashboardButton from '@/components/BackToDashboardButton';
 const QuizCreationPage: React.FC = () => {
   const router = useRouter();
   const { problemData } = useProblem();
+  const { user, profile, session, loading } = useAuth();
+  
+  // 問題データの確認
+  console.log('QuizCreationPage 初期化:', problemData);
+  console.log('認証状態:', { user: user?.id, email: user?.email, profile, session: !!session, loading });
+  
+  // 問題データが不完全な場合の警告
+  useEffect(() => {
+    if (!problemData.problem || !problemData.code) {
+      console.warn('問題データが不完全です:', problemData);
+      console.warn('problem:', problemData.problem);
+      console.warn('code:', problemData.code);
+    }
+  }, [problemData]);
+  
   const learningTopic = problemData.learningTopic || '';
   const [creationMode, setCreationMode] = useState<CreationMode>('auto');
   const [explanation, setExplanation] = useState('');
@@ -179,21 +195,61 @@ const QuizCreationPage: React.FC = () => {
   }, [hasUnsavedChanges, isSaving]);
 
   const handleFinish = async () => {
+    console.log('=== 保存処理開始 ===');
+    console.log('creationMode:', creationMode);
+    console.log('problemData:', problemData);
+    console.log('認証状態:', { user: user?.id, email: user?.email, profile, session: !!session, loading });
+    console.log('explanation:', explanation);
+    console.log('manualExplanation:', manualExplanation);
+    console.log('generatedQuiz:', generatedQuiz);
+    console.log('manualChoices:', manualChoices);
+    console.log('codeWithBlanks:', codeWithBlanks);
+
+    // 認証状態の確認
+    if (!user || !session) {
+      console.error('認証エラー: ユーザーがログインしていません');
+      alert('ログインが必要です。ダッシュボードに戻ってログインしてください。');
+      router.push('/dashboard');
+      return;
+    }
+    
     // バリデーション
     const finalExplanation = creationMode === 'auto' ? explanation : manualExplanation;
     const finalChoices = creationMode === 'auto' ? generatedQuiz?.choices : manualChoices;
     const finalCodeWithBlanks = creationMode === 'auto' ? generatedQuiz?.codeWithBlanks : codeWithBlanks;
 
+    console.log('=== バリデーション ===');
+    console.log('finalExplanation:', finalExplanation);
+    console.log('finalChoices:', finalChoices);
+    console.log('finalCodeWithBlanks:', finalCodeWithBlanks);
+
+    // 問題データの基本チェック
+    if (!problemData.problem || !problemData.problem.trim()) {
+      console.error('バリデーションエラー: 問題文が空');
+      alert('問題文が設定されていません。「/create-quiz」ページで問題を作成してください。');
+      return;
+    }
+
+    if (!problemData.code || !problemData.code.trim()) {
+      console.error('バリデーションエラー: コードが空');
+      alert('解答コードが設定されていません。「/create-quiz」ページでコードを作成してください。');
+      return;
+    }
+
     if (!finalExplanation || !finalExplanation.trim()) {
+      console.error('バリデーションエラー: 解説が空');
       alert('解説を入力してください');
       return;
     }
 
     if (!finalChoices || finalChoices.length === 0 || !finalChoices.every(c => c.text.trim())) {
+      console.error('バリデーションエラー: 選択肢が不正');
+      console.log('選択肢の詳細:', finalChoices);
       alert('すべての選択肢を入力してください');
       return;
     }
 
+    console.log('=== バリデーション通過 ===');
     setIsSaving(true);
 
     try {
@@ -208,9 +264,16 @@ const QuizCreationPage: React.FC = () => {
         explanation: finalExplanation,
       };
 
+      console.log('=== 保存データ準備完了 ===');
+      console.log('problemToSave:', problemToSave);
+
       // チャット履歴を準備
       const creationHistory = chatService.getConversationHistory();
       const explanationHistory = explanationChatService.getConversationHistory();
+
+      console.log('=== チャット履歴取得 ===');
+      console.log('creationHistory length:', creationHistory.length);
+      console.log('explanationHistory length:', explanationHistory.length);
 
       const chatHistories: ChatHistoryInput[] = [];
 
@@ -228,21 +291,48 @@ const QuizCreationPage: React.FC = () => {
         });
       }
 
+      console.log('=== Supabaseに保存開始 ===');
+      console.log('chatHistories:', chatHistories);
+
       // Supabaseに保存
-      const result = await saveProblem(problemToSave, chatHistories);
+      const userInfo = user ? { id: user.id, email: user.email } : undefined;
+      console.log('=== ユーザー情報を渡して保存 ===');
+      console.log('userInfo:', userInfo);
+      const result = await saveProblem(problemToSave, chatHistories, userInfo);
+
+      console.log('=== 保存結果 ===');
+      console.log('result:', result);
 
       if (result.success) {
+        console.log('保存成功！');
         setHasUnsavedChanges(false);
         alert('問題が保存されました！');
         router.push('/dashboard');
       } else {
-        alert(`保存に失敗しました: ${result.error}`);
+        console.error('保存失敗:', result.error);
+        
+        // エラーメッセージをより詳細に表示
+        let errorMessage = `保存に失敗しました: ${result.error}`;
+        if (result.error?.includes('タイムアウト')) {
+          errorMessage += '\n\nネットワーク接続を確認して、もう一度お試しください。';
+        } else if (result.error?.includes('認証')) {
+          errorMessage += '\n\nログイン状態を確認してください。';
+        } else if (result.error?.includes('接続')) {
+          errorMessage += '\n\nデータベース接続に問題があります。しばらく待ってからお試しください。';
+        }
+        
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Save error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
       alert('保存中にエラーが発生しました');
     } finally {
       setIsSaving(false);
+      console.log('=== 保存処理終了 ===');
     }
   };
 

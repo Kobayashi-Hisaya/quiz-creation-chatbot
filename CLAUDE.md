@@ -142,9 +142,10 @@ This application uses Supabase for authentication and data persistence. All user
 
 ### Authentication Flow
 
-- **Login required**: Users must authenticate with Google before using the app
+- **Login required**: Users must authenticate with email/password before using the app
 - **AuthContext** provides authentication state management
-- **Google OAuth**: Configured through Supabase Auth
+- **Email Authentication**: Uses Supabase Auth with email/password
+- **User Management**: Administrators create user accounts in Supabase dashboard
 
 ### Database Schema
 
