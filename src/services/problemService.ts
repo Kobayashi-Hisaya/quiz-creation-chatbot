@@ -4,12 +4,19 @@ import type { QuizChoice } from '@/types/quiz';
 
 export interface SaveProblemData {
   problem_text: string;
-  code: string;
-  language: string;
+  // プログラミング問題用フィールド
+  code: string | null;
+  language: string | null;
   learning_topic: string | null;
   code_with_blanks: string | null;
   choices: QuizChoice[] | null;
   explanation: string | null;
+  // データ整理問題用フィールド
+  spreadsheet_url?: string | null;
+  spreadsheet_id?: string | null;
+  problem_category?: string;
+  session_id?: string | null;
+  table_data?: Record<string, unknown> | null;
 }
 
 export interface ChatHistoryInput {
