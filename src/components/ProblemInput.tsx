@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import LogoutButton from '@/components/LogoutButton'; // 追加
 import BackToDashboardButton from './BackToDashboardButton';
 
 interface ProblemInputProps {
