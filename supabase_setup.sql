@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS problems (
   code_with_blanks TEXT,
   choices JSONB,
   explanation TEXT,
+  title TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
