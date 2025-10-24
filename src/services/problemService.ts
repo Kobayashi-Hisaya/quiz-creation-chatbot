@@ -12,6 +12,7 @@ export interface SaveProblemData {
   code_with_blanks: string | null;
   choices: QuizChoice[] | null;
   explanation: string | null;
+  title: string | null;
   // データ整理問題用フィールド
   spreadsheet_url?: string | null;
   spreadsheet_id?: string | null;
