@@ -515,3 +515,41 @@ export const updateComment = async (
     return { success: false, error: `予期しないエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown'}` };
   }
 };
+
+/**
+ * 複数の問題のコメント数を取得
+ */
+export const getProblemsCommentCounts = async (
+  problemIds: string[]
+): Promise<Record<string, number>> => {
+  try {
+    if (problemIds.length === 0) {
+      return {};
+    }
+
+    const { data: comments, error } = await supabase
+      .from('problem_comments')
+      .select('problem_id')
+      .in('problem_id', problemIds);
+
+    if (error) {
+      console.error('Get comment counts error:', error);
+      return {};
+    }
+
+    // コメント数をカウント
+    const counts: Record<string, number> = {};
+    problemIds.forEach(id => {
+      counts[id] = 0;
+    });
+
+    (comments || []).forEach((comment) => {
+      counts[comment.problem_id]++;
+    });
+
+    return counts;
+  } catch (error) {
+    console.error('Get comment counts exception:', error);
+    return {};
+  }
+};

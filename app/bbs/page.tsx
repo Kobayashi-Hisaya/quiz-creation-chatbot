@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAllProblemsWithAuthor } from '@/services/problemService';
+import { getAllProblemsWithAuthor, getProblemsCommentCounts } from '@/services/problemService';
 import type { Problem } from '@/types/database';
 
 interface ProblemWithAuthor extends Problem {
   author_email?: string;
+  commentCount?: number;
 }
 
 export default function BBSPage() {
@@ -22,7 +23,17 @@ export default function BBSPage() {
       const result = await getAllProblemsWithAuthor();
 
       if (result.success && result.problems) {
-        setProblems(result.problems);
+        // コメント数を取得
+        const problemIds = result.problems.map(p => p.id);
+        const commentCounts = await getProblemsCommentCounts(problemIds);
+
+        // 問題にコメント数を追加
+        const problemsWithCommentCounts = result.problems.map(p => ({
+          ...p,
+          commentCount: commentCounts[p.id] || 0
+        }));
+
+        setProblems(problemsWithCommentCounts);
       } else {
         setError(result.error || '問題の取得に失敗しました');
       }
@@ -202,13 +213,24 @@ export default function BBSPage() {
                     <div>作成者: {problem.author_email || problem.user_id || '不明'}</div>
                   </div>
 
-                  {/* 作成日時 */}
+                  {/* 作成日時とコメント数 */}
                   <div style={{
                     fontSize: '12px',
                     color: '#999',
-                    marginBottom: '12px'
+                    marginBottom: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between'
                   }}>
-                    更新日: {problem.updated_at ? formatDate(problem.updated_at) : '不明'}
+                    <div>更新日: {problem.updated_at ? formatDate(problem.updated_at) : '不明'}</div>
+                    <div style={{
+                      backgroundColor: '#e8f4f8',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontWeight: '500',
+                      color: '#3498db'
+                    }}>
+                      コメント: {problem.commentCount || 0}
+                    </div>
                   </div>
 
                   {/* 学習トピック */}
