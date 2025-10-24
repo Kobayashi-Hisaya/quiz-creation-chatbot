@@ -334,6 +334,20 @@ export default function AssessmentPage() {
                   問題情報
                 </h2>
                 <div style={{ fontSize: '13px', color: '#666' }}>
+                  <p style={{
+                    margin: '8px 0',
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    color: '#ffffff',
+                    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                    border: '1px solid rgba(102, 126, 234, 0.3)'
+                  }}>
+                    <strong>✨ タイトル:</strong> {problem.title || 'タイトル未定'}
+                  </p>
                   <p style={{ margin: '5px 0' }}>
                     <strong>言語:</strong> {problem.language || '不明'}
                   </p>
