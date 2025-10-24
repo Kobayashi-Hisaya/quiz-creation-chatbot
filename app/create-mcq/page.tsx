@@ -10,6 +10,7 @@ import { AutoGenerationMode } from '@/components/AutoGenerationMode';
 import { ManualCreationMode } from '@/components/ManualCreationMode';
 import { ExplanationChatContainer } from '@/components/ExplanationChatContainer';
 import { ModeChangeConfirmDialog } from '@/components/ModeChangeConfirmDialog';
+import { TitleInputPopup } from '@/components/TitleInputPopup';
 import type { AutoGenerationResponse } from '@/types/quiz';
 import type * as monacoEditor from 'monaco-editor';
 import { chatService } from '@/services/chatService';
@@ -52,6 +53,8 @@ const QuizCreationPage: React.FC = () => {
   const [manualExplanation, setManualExplanation] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true);
+  const [showTitlePopup, setShowTitlePopup] = useState(false);
+  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monacoEditor | null>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -250,21 +253,50 @@ const QuizCreationPage: React.FC = () => {
     }
 
     console.log('=== バリデーション通過 ===');
-    setIsSaving(true);
+    
+    // バリデーション成功後、タイトル入力ポップアップを表示
+    // 保存用データを準備
+    const problemToSave: SaveProblemData = {
+      problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
+      code: problemData.code,
+      language: problemData.language,
+      learning_topic: learningTopic || null,
+      code_with_blanks: finalCodeWithBlanks || null,
+      choices: finalChoices,
+      explanation: finalExplanation,
+      title: null,  // タイトル入力待ち
+    };
+
+    setPendingTitle(null);
+    setShowTitlePopup(true);
+  };
+
+  const handleTitleSubmit = async (title: string) => {
+    console.log('=== タイトル入力完了 ===');
+    console.log('title:', title);
+    setShowTitlePopup(false);
 
     try {
-      // 問題データを準備
+      setIsSaving(true);
+
+      // finalExplanation と finalChoices を再構築
+      const finalExplanation = creationMode === 'auto' ? explanation : manualExplanation;
+      const finalChoices = creationMode === 'auto' ? generatedQuiz?.choices : manualChoices;
+      const finalCodeWithBlanks = creationMode === 'auto' ? generatedQuiz?.codeWithBlanks : codeWithBlanks;
+
+      // 問題データを準備（title を含める）
       const problemToSave: SaveProblemData = {
         problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
         code: problemData.code,
         language: problemData.language,
         learning_topic: learningTopic || null,
         code_with_blanks: finalCodeWithBlanks || null,
-        choices: finalChoices,
+        choices: finalChoices || [],
         explanation: finalExplanation,
+        title: title,
       };
 
-      console.log('=== 保存データ準備完了 ===');
+      console.log('=== 保存データ準備完了（タイトル付き） ===');
       console.log('problemToSave:', problemToSave);
 
       // チャット履歴を準備
@@ -334,6 +366,13 @@ const QuizCreationPage: React.FC = () => {
       setIsSaving(false);
       console.log('=== 保存処理終了 ===');
     }
+  };
+
+  const handleTitleCancel = () => {
+    console.log('=== タイトル入力キャンセル ===');
+    setShowTitlePopup(false);
+    setPendingTitle(null);
+
   };
 
   return (
@@ -776,6 +815,13 @@ const QuizCreationPage: React.FC = () => {
         newMode={pendingMode}
         onConfirm={handleModeChangeConfirm}
         onCancel={handleModeChangeCancel}
+      />
+
+      {/* Title input popup */}
+      <TitleInputPopup
+        isOpen={showTitlePopup}
+        onSubmit={handleTitleSubmit}
+        onCancel={handleTitleCancel}
       />
     </div>
   );
