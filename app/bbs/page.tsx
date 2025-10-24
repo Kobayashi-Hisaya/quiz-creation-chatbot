@@ -250,15 +250,16 @@ export default function BBSPage() {
                     </div>
                   )}
 
-                  {/* 問題文の冒頭 */}
+                  {/* 問題タイトル */}
                   <div style={{
                     fontSize: '15px',
                     color: '#2c3e50',
                     lineHeight: '1.6',
                     marginTop: '8px',
-                    flex: 1
+                    flex: 1,
+                    fontWeight: '600'
                   }}>
-                    {truncateText(problem.problem_text || '', 50)}
+                    {truncateText(problem.title || 'タイトル未定', 50)}
                   </div>
                 </div>
               ))}
