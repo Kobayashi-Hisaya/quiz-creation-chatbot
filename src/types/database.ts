@@ -48,3 +48,17 @@ export interface ChatMessage {
   content: string;
   timestamp?: string;
 }
+
+export interface ProblemComment {
+  id: string; // UUID
+  problem_id: string; // UUID, references problems(id)
+  user_id: string; // UUID, references auth.users(id)
+  content: string;
+  created_at: string; // ISO 8601 timestamp
+  updated_at: string; // ISO 8601 timestamp
+  is_edited: boolean; // 編集済みフラグ
+}
+
+export interface ProblemCommentWithUser extends ProblemComment {
+  user_email?: string; // from profiles.email
+}

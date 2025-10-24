@@ -48,24 +48,9 @@ export const saveProblem = async (
     } else {
       // 認証されたユーザーを取得
       console.log('[problemService] 認証チェック開始');
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       
-      let authError;
-      try {
-        console.log('[problemService] supabase.auth.getUser() 呼び出し開始');
-        const authResult = await Promise.race([
-          supabase.auth.getUser(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('認証チェックがタイムアウトしました')), 10000))
-        ]) as { data: { user: User | null }, error: Error | null };
-        
-        user = authResult.data.user;
-        authError = authResult.error;
-        console.log('[problemService] 認証チェック完了');
-      } catch (error) {
-        console.error('[problemService] 認証チェック中にエラー:', error);
-        authError = error;
-        user = null;
-      }
-      
+      user = authUser;
       console.log('[problemService] 認証結果:', { user: user?.id, email: user?.email, authError });
       
       if (authError || !user) {
@@ -74,81 +59,9 @@ export const saveProblem = async (
       }
     }
 
-    // Supabase設定とクライアント状態を確認
-    console.log('[problemService] Supabase設定確認');
-    console.log('[problemService] supabaseUrl:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log('[problemService] supabaseAnonKey:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '設定済み' : '未設定');
-    console.log('[problemService] supabaseクライアント:', supabase);
-
-    // 段階的接続テスト
-    console.log('[problemService] 段階的接続テスト開始');
-    
-    // 1. 基本的な接続テスト
-    try {
-      console.log('[problemService] ステップ1: 基本接続テスト');
-      const basicTest = await Promise.race([
-        supabase.from('problems').select('count'),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('基本接続タイムアウト')), 5000))
-      ]) as { data: { count: number }[] | null, error: Error | null };
-      
-      console.log('[problemService] 基本接続テスト結果:', basicTest);
-    } catch (basicError) {
-      console.error('[problemService] 基本接続失敗:', basicError);
-    }
-    
-    // 2. 認証付きテスト
-    try {
-      console.log('[problemService] ステップ2: 認証付きテスト');
-      const authTest = await Promise.race([
-        supabase.from('problems').select('id').eq('user_id', user.id).limit(1),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('認証付きテストタイムアウト')), 8000))
-      ]) as { data: { id: string }[] | null, error: Error | null };
-      
-      console.log('[problemService] 認証付きテスト結果:', authTest);
-      
-      if (authTest.error) {
-        console.error('[problemService] 認証付きテストエラー:', authTest.error);
-        
-        // RLSポリシーエラーの可能性をチェック
-        if (authTest.error.message?.includes('policy') || authTest.error.message?.includes('permission')) {
-          return { 
-            success: false, 
-            error: `アクセス権限エラー: ${authTest.error.message}. RLSポリシーを確認してください。` 
-          };
-        }
-        
-        return { 
-          success: false, 
-          error: `データベースエラー: ${authTest.error.message || authTest.error}` 
-        };
-      }
-      
-      console.log('[problemService] 接続テスト成功');
-    } catch (error) {
-      console.error('[problemService] 認証付きテストエラー:', error);
-      
-      // 最後の手段として直接APIコールを試す
-      console.log('[problemService] 直接APIコール試行');
-      try {
-        const directApiCall = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/problems?select=id&limit=1`, {
-          method: 'GET',
-          headers: {
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        console.log('[problemService] 直接APIコール結果:', directApiCall.status, await directApiCall.text());
-        
-        if (!directApiCall.ok) {
-          return { success: false, error: `API直接呼び出しエラー: ${directApiCall.status}` };
-        }
-      } catch (apiError) {
-        console.error('[problemService] 直接APIコールエラー:', apiError);
-        return { success: false, error: 'すべての接続方法が失敗しました。ネットワークまたはSupabase設定を確認してください。' };
-      }
-    }
+    // Supabase設定確認（デバッグ用）
+    console.log('[problemService] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'configured' : 'missing');
+    console.log('[problemService] Supabase Anon Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'configured' : 'missing');
 
     // 問題データを保存
     console.log('[problemService] 問題データ保存開始');
@@ -158,26 +71,11 @@ export const saveProblem = async (
     };
     console.log('[problemService] 挿入データ:', insertData);
 
-    let problem, problemError;
-    try {
-      console.log('[problemService] Supabase insert 開始');
-      const insertResult = await Promise.race([
-        supabase
-          .from('problems')
-          .insert([insertData])
-          .select()
-          .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 15000))
-      ]) as { data: Problem | null, error: Error | null };
-      
-      problem = insertResult.data;
-      problemError = insertResult.error;
-      console.log('[problemService] Supabase insert 完了');
-    } catch (error) {
-      console.error('[problemService] Supabase insert エラー:', error);
-      problemError = error;
-      problem = null;
-    }
+    const { data: problem, error: problemError } = await supabase
+      .from('problems')
+      .insert([insertData])
+      .select()
+      .single();
 
     console.log('[problemService] 問題保存結果:', { problem, problemError });
 
@@ -231,20 +129,31 @@ export const getProblems = async (
   userId: string
 ): Promise<{ success: boolean; problems?: Problem[]; error?: string }> => {
   try {
+    console.log('[problemService] getProblems 開始:', { userId });
+    
     const { data, error } = await supabase
       .from('problems')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
+    console.log('[problemService] getProblems Supabase レスポンス:', {
+      hasData: !!data,
+      dataLength: data?.length,
+      hasError: !!error,
+      errorCode: error?.code,
+      errorMessage: error?.message
+    });
+
     if (error) {
-      console.error('Get problems error:', error);
+      console.error('[problemService] Get problems error:', error);
       return { success: false, error: '問題の取得に失敗しました' };
     }
 
+    console.log('[problemService] getProblems 成功:', data?.length || 0, '件');
     return { success: true, problems: data };
   } catch (error) {
-    console.error('Get problems error:', error);
+    console.error('[problemService] Get problems 例外:', error);
     return { success: false, error: '予期しないエラーが発生しました' };
   }
 };
@@ -332,7 +241,7 @@ export const getAllProblems = async (): Promise<{
     const { data, error } = await supabase
       .from('problems')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (error) {
       console.error('Get all problems error:', error);
@@ -342,6 +251,56 @@ export const getAllProblems = async (): Promise<{
     return { success: true, problems: data };
   } catch (error) {
     console.error('Get all problems error:', error);
+    return { success: false, error: '予期しないエラーが発生しました' };
+  }
+};
+
+/**
+ * 全問題を作成者情報付きで取得（BBS用）
+ */
+export const getAllProblemsWithAuthor = async (): Promise<{
+  success: boolean;
+  problems?: (Problem & { author_email?: string })[];
+  error?: string;
+}> => {
+  try {
+    // 全問題を取得
+    const { data: problems, error: problemsError } = await supabase
+      .from('problems')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (problemsError) {
+      console.error('Get all problems error:', problemsError);
+      return { success: false, error: '問題の取得に失敗しました' };
+    }
+
+    // 全プロフィールを取得
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email');
+
+    if (profilesError) {
+      console.error('Get profiles error:', profilesError);
+      // プロフィール取得失敗でも問題は返す（author_emailなし）
+      return { success: true, problems: problems || [] };
+    }
+
+    // プロフィールマップを作成
+    const profileMap = (profiles || []).reduce((acc, profile) => {
+      acc[profile.id] = profile.email;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // 問題にメールアドレスを追加
+    const problemsWithAuthor = (problems || []).map((problem) => ({
+      ...problem,
+      author_email: profileMap[problem.user_id] || undefined,
+    }));
+
+    return { success: true, problems: problemsWithAuthor };
+  } catch (error) {
+    console.error('Get all problems with author error:', error);
     return { success: false, error: '予期しないエラーが発生しました' };
   }
 };
@@ -394,5 +353,165 @@ export const getAllUsers = async (): Promise<{
   } catch (error) {
     console.error('Get all users error:', error);
     return { success: false, error: '予期しないエラーが発生しました' };
+  }
+};
+
+/**
+ * 問題にコメントを追加
+ */
+export const addCommentToProblem = async (
+  problemId: string,
+  userId: string,
+  content: string
+): Promise<{ success: boolean; commentId?: string; error?: string }> => {
+  try {
+    console.log('[problemService] addCommentToProblem 開始:', {
+      problemId,
+      userId,
+      contentLength: content.length
+    });
+
+    const { data, error } = await supabase
+      .from('problem_comments')
+      .insert([{ problem_id: problemId, user_id: userId, content }])
+      .select()
+      .single();
+
+    console.log('[problemService] addCommentToProblem 結果:', { data, error });
+
+    if (error) {
+      console.error('[problemService] Add comment error:', error);
+      return {
+        success: false,
+        error: `コメント追加エラー: ${error.message || JSON.stringify(error)}`
+      };
+    }
+
+    return { success: true, commentId: data?.id };
+  } catch (error) {
+    console.error('[problemService] Add comment exception:', error);
+    return {
+      success: false,
+      error: `予期しないエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown'}`
+    };
+  }
+};
+
+/**
+ * 問題のコメント一覧を取得（作成者情報付き）
+ */
+export const getProblemComments = async (
+  problemId: string
+): Promise<{
+  success: boolean;
+  comments?: (any & { user_email?: string })[];
+  error?: string;
+}> => {
+  try {
+    // コメントを取得
+    const { data: comments, error: commentsError } = await supabase
+      .from('problem_comments')
+      .select('*')
+      .eq('problem_id', problemId)
+      .order('created_at', { ascending: true });
+
+    if (commentsError) {
+      console.error('Get comments error:', commentsError);
+      return { success: false, error: 'コメントの取得に失敗しました' };
+    }
+
+    // ユーザー情報を取得
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email');
+
+    if (profilesError) {
+      // プロフィール取得失敗でもコメントは返す
+      return { success: true, comments: comments || [] };
+    }
+
+    // プロフィールマップを作成
+    const profileMap = (profiles || []).reduce((acc, profile) => {
+      acc[profile.id] = profile.email;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // コメントにメールアドレスを追加
+    const commentsWithUser = (comments || []).map((comment) => ({
+      ...comment,
+      user_email: profileMap[comment.user_id] || '不明',
+    }));
+
+    return { success: true, comments: commentsWithUser };
+  } catch (error) {
+    console.error('Get problem comments error:', error);
+    return { success: false, error: '予期しないエラーが発生しました' };
+  }
+};
+
+/**
+ * コメントを削除
+ */
+export const deleteComment = async (
+  commentId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('problem_comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Delete comment error:', error);
+      return { success: false, error: 'コメントの削除に失敗しました' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    return { success: false, error: '予期しないエラーが発生しました' };
+  }
+};
+
+/**
+ * コメントを編集
+ */
+export const updateComment = async (
+  commentId: string,
+  content: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('[problemService] updateComment 開始:', {
+      commentId,
+      contentLength: content.length,
+      content: content.substring(0, 50) + '...'
+    });
+
+    const updateData = {
+      content,
+      updated_at: new Date().toISOString(),
+      is_edited: true
+    };
+
+    console.log('[problemService] 更新データ:', updateData);
+
+    const { data, error } = await supabase
+      .from('problem_comments')
+      .update(updateData)
+      .eq('id', commentId)
+      .select();
+
+    console.log('[problemService] updateComment API 結果:', { data, error });
+
+    if (error) {
+      console.error('[problemService] Update comment error:', error);
+      return { success: false, error: `コメント編集エラー: ${error.message}` };
+    }
+
+    console.log('[problemService] updateComment 成功:', data);
+    return { success: true };
+  } catch (error) {
+    console.error('[problemService] Update comment exception:', error);
+    return { success: false, error: `予期しないエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown'}` };
   }
 };

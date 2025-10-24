@@ -18,6 +18,10 @@ DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 CREATE POLICY "Admins can view all profiles" ON profiles
   FOR SELECT USING (
@@ -119,6 +123,41 @@ CREATE TRIGGER update_problems_updated_at
   BEFORE UPDATE ON problems
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- ==========================================
+-- 4b. problem_comments テーブル
+-- ==========================================
+CREATE TABLE IF NOT EXISTS problem_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  problem_id UUID REFERENCES problems(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_edited BOOLEAN DEFAULT false
+);
+
+-- RLS ポリシー
+ALTER TABLE problem_comments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view comments" ON problem_comments;
+CREATE POLICY "Users can view comments" ON problem_comments
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can create comments" ON problem_comments;
+CREATE POLICY "Users can create comments" ON problem_comments
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own comments" ON problem_comments;
+CREATE POLICY "Users can update own comments" ON problem_comments
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own comments" ON problem_comments;
+CREATE POLICY "Users can delete own comments" ON problem_comments
+  FOR DELETE USING (auth.uid() = user_id OR
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
 
 -- ==========================================
 -- 5. Google認証後の自動プロファイル作成トリガー

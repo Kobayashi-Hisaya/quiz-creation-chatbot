@@ -14,6 +14,8 @@ const DashboardPageContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('[Dashboard] ページ初期化:', { user: user?.id, loading });
+
   // URLクリーンアップ処理（認証コールバック後のトークン削除）
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -22,19 +24,11 @@ const DashboardPageContent: React.FC = () => {
         console.log('🔧 Cleaning up authentication tokens from URL...');
         
         try {
-          // Supabaseセッションを確立（URLのトークンを使用）
-          const { data, error } = await supabase.auth.getSession();
-          
-          if (data.session) {
-            console.log('✅ Session established, cleaning URL...');
-            // URLからハッシュを削除してクリーンなURLにする
-            window.history.replaceState({}, document.title, window.location.pathname);
-            console.log('✅ URL cleaned up successfully');
-          } else if (error) {
-            console.error('❌ Session establishment failed:', error);
-          }
+          // 単にURLのハッシュを削除してクリーンなURLにする（セッション取得は AuthContext が処理済み）
+          window.history.replaceState({}, document.title, window.location.pathname);
+          console.log('✅ URL cleaned up successfully');
         } catch (error) {
-          console.error('❌ Auth callback handling failed:', error);
+          console.error('❌ URL cleanup failed:', error);
         }
       }
     };
@@ -44,20 +38,45 @@ const DashboardPageContent: React.FC = () => {
 
   useEffect(() => {
     const fetchProblems = async () => {
-      if (!user) return;
+      console.log('[Dashboard] fetchProblems 開始:', { 
+        userId: user?.id,
+        userEmail: user?.email,
+        hasUser: !!user 
+      });
+      
+      if (!user) {
+        console.warn('[Dashboard] ユーザーがログインしていません');
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
 
-      const result = await getProblems(user.id);
+      try {
+        console.log('[Dashboard] getProblems を呼び出し中...');
+        const result = await getProblems(user.id);
+        console.log('[Dashboard] getProblems 完了:', {
+          success: result.success,
+          problemsCount: result.problems?.length,
+          error: result.error
+        });
 
-      if (result.success && result.problems) {
-        setProblems(result.problems);
-      } else {
-        setError(result.error || '問題の取得に失敗しました');
+        if (result.success && result.problems) {
+          console.log('[Dashboard] 問題取得成功:', result.problems.length, '件');
+          console.log('[Dashboard] 最初の問題:', result.problems[0]);
+          setProblems(result.problems);
+        } else {
+          console.error('[Dashboard] 問題取得失敗:', result.error);
+          setError(result.error || '問題の取得に失敗しました');
+        }
+      } catch (error) {
+        console.error('[Dashboard] 例外エラー:', error);
+        setError('予期しないエラーが発生しました');
+      } finally {
+        console.log('[Dashboard] fetchProblems 完了');
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     fetchProblems();
@@ -74,6 +93,10 @@ const DashboardPageContent: React.FC = () => {
 
   const handleCreateNew = () => {
     router.push('/create-quiz');
+  };
+
+  const handleGroupMode = () => {
+    router.push('/bbs');
   };
 
   const handleProblemClick = (problemId: string) => {
@@ -141,6 +164,28 @@ const DashboardPageContent: React.FC = () => {
             }}
           >
             新しい問題を作成する
+          </button>
+          <button
+            onClick={handleGroupMode}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#27ae60',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '15px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#229954';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#27ae60';
+            }}
+          >
+            グループモード
           </button>
           <button
             onClick={handleLogout}
