@@ -9,11 +9,11 @@
  */
 
 // テンプレートのスプレッドシートID
-const TEMPLATE_SPREADSHEET_ID = '1AKsnKB5EmCSFjsNu-Y3V_qfBeQ0glSb4nZVuBG-zgHE';
+const TEMPLATE_SPREADSHEET_ID = '11MO0z4zCvf2G3xdHBoLw_l7-p-IzZ-AiMDNJN-NYQ7A';
 
 // <<< 修正 (1) >>>
 // 保存先のフォルダIDを指定
-const TARGET_FOLDER_ID = '1jSLXuWtgKVxw-c_nttjZFzyngyE3OzYl';
+const TARGET_FOLDER_ID = '1ctTvwePc7tPj0HML3q6LxEPw9kaLOrOv';
 
 /**
  * 新しいデータ整理問題シートを作成
