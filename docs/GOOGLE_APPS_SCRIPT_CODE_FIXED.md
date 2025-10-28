@@ -9,7 +9,11 @@
  */
 
 // テンプレートのスプレッドシートID
-const TEMPLATE_SPREADSHEET_ID = '1QO73qZXBxse4BnUAUPQ92a1oYHUaVp-XqknrfWHBJTg';
+const TEMPLATE_SPREADSHEET_ID = '1AKsnKB5EmCSFjsNu-Y3V_qfBeQ0glSb4nZVuBG-zgHE';
+
+// <<< 修正 (1) >>>
+// 保存先のフォルダIDを指定
+const TARGET_FOLDER_ID = '1jSLXuWtgKVxw-c_nttjZFzyngyE3OzYl';
 
 /**
  * 新しいデータ整理問題シートを作成
@@ -27,6 +31,26 @@ function createDataProblemSheet(userEmail, sessionId) {
     
     // テンプレートをコピー
     const newSheet = templateSheet.copy(newSheetName);
+
+    // <<< 修正 (2) >>>
+    // ここからが追加部分です
+    try {
+      // DriveApp を使って、作成されたファイルを取得
+      const newFile = DriveApp.getFileById(newSheet.getId());
+      
+      // 保存先のフォルダを取得
+      const targetFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+      
+      // ファイルを指定フォルダに移動
+      newFile.moveTo(targetFolder);
+      console.log('Moved new sheet to folder:', TARGET_FOLDER_ID);
+      
+    } catch (e) {
+      // フォルダへの移動に失敗した場合（例: フォルダIDが間違っている、権限がないなど）
+      console.warn('Could not move file to target folder. File remains in root.', e.message);
+      // エラーにせず、処理は続行
+    }
+    // <<< 追加部分ここまで >>>
     
     // 作成者に編集権限を付与
     if (userEmail && userEmail.includes('@')) {
@@ -57,50 +81,66 @@ function createDataProblemSheet(userEmail, sessionId) {
 }
 
 /**
- * スプレッドシートからデータを取得
+ * スプレッドシート内の「全シート」から「全データ」を取得する
+ * @param {string} spreadsheetId 調査対象のスプレッドシートID
+ * @returns {Object} 問題文と全シートのデータを含むオブジェクト
  */
 function getSheetData(spreadsheetId) {
   try {
-    console.log('Getting data from sheet:', spreadsheetId);
-    
-    const sheet = SpreadsheetApp.openById(spreadsheetId);
-    const firstSheet = sheet.getSheets()[0];
-    
-    // 問題文エリア（A5:A15）を取得
-    const problemTextRange = firstSheet.getRange('A5:A15');
-    const problemTextValues = problemTextRange.getValues();
-    const problemText = problemTextValues
-      .map(row => row[0] || '')
-      .filter(text => text.toString().trim() !== '')
-      .join('\n');
-    
-    // データエリア（A19以降）の使用範囲を取得
-    const lastRow = firstSheet.getLastRow();
-    const lastColumn = firstSheet.getLastColumn();
-    
-    let tableData = [];
-    if (lastRow >= 19 && lastColumn >= 1) {
-      const dataRange = firstSheet.getRange(19, 1, lastRow - 18, lastColumn);
-      tableData = dataRange.getValues();
+    console.log('Getting all data from all sheets in:', spreadsheetId);
+
+    // 対象のスプレッドシートを開く
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    // すべてのシートを取得
+    const allSheets = spreadsheet.getSheets();
+
+    // 問題文は最初のシートのA5:A15から取得
+    let problemText = '';
+    if (allSheets.length > 0) {
+      const firstSheet = allSheets[0];
+      const problemTextRange = firstSheet.getRange('A5:A15');
+      const problemTextValues = problemTextRange.getValues();
+      problemText = problemTextValues
+        .map(row => row[0] || '')
+        .filter(text => text.toString().trim() !== '')
+        .join('\n');
     }
-    
+
+    const sheets = []; // 全シートのデータを格納する配列
+
+    // for...of ループですべてのシートを順番に処理
+    for (const sheet of allSheets) {
+      // 現在のシートでデータが入力されている範囲全体を取得
+      const dataRange = sheet.getDataRange();
+      // その範囲の値を二次元配列として取得
+      const tableData = dataRange.getValues();
+
+      // 各シートの結果をオブジェクトにまとめる
+      const sheetData = {
+        sheetName: sheet.getName(),    // シート名
+        sheetId: sheet.getSheetId(),   // シートID
+        tableData: tableData,          // シートの全データ
+        lastRow: sheet.getLastRow(),   // 最終行
+        lastColumn: sheet.getLastColumn() // 最終列
+      };
+
+      // 配列に結果を追加
+      sheets.push(sheetData);
+    }
+
+    // 最終的な結果オブジェクト
     const result = {
       problemText: problemText,
-      tableData: tableData,
-      lastModified: new Date().toISOString(),
-      sheetInfo: {
-        lastRow: lastRow,
-        lastColumn: lastColumn,
-        title: sheet.getName()
-      }
+      sheets: sheets,
+      lastModified: new Date().toISOString()
     };
-    
-    console.log('Data retrieved successfully');
+
+    console.log('All sheet data retrieved successfully.');
     return result;
-    
+
   } catch (error) {
-    console.error('Error getting sheet data:', error);
-    throw new Error(`Failed to get sheet data: ${error.message}`);
+    console.error('Error getting all sheet data:', error);
+    throw new Error(`Failed to get all sheet data: ${error.message}`);
   }
 }
 

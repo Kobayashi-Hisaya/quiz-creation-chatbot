@@ -1,12 +1,15 @@
+export interface SheetData {
+  sheetName: string;
+  sheetId: number;
+  tableData: any[][];
+  lastRow: number;
+  lastColumn: number;
+}
+
 export interface DataProblemTemplateData {
   problemText?: string;
-  tableData?: any[][];
+  sheets?: SheetData[];
   lastModified?: string;
-  sheetInfo?: {
-    lastRow: number;
-    lastColumn: number;
-    title: string;
-  };
 }
 
 export interface CreateSheetResponse {
@@ -24,13 +27,8 @@ export interface CreateSheetResponse {
 
 export interface GetDataResponse {
   problemText: string;
-  tableData: any[][];
+  sheets: SheetData[];
   lastModified: string;
-  sheetInfo: {
-    lastRow: number;
-    lastColumn: number;
-    title: string;
-  };
 }
 
 class GASClientService {
@@ -125,9 +123,8 @@ class GASClientService {
       }
       return {
         problemText: result.problemText,
-        tableData: result.tableData,
-        lastModified: result.lastModified,
-        sheetInfo: result.sheetInfo
+        sheets: result.sheets,
+        lastModified: result.lastModified
       };
     } catch (error) {
       console.error('Failed to get spreadsheet data via GAS:', error);

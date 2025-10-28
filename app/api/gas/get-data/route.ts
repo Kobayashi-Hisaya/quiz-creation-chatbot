@@ -4,17 +4,20 @@ interface GetDataRequest {
   spreadsheetId: string;
 }
 
+interface SheetData {
+  sheetName: string;
+  sheetId: number;
+  tableData: any[][];
+  lastRow: number;
+  lastColumn: number;
+}
+
 interface GASDataResponse {
   success: boolean;
   data?: {
     problemText: string;
-    tableData: any[][];
+    sheets: SheetData[];
     lastModified: string;
-    sheetInfo: {
-      lastRow: number;
-      lastColumn: number;
-      title: string;
-    };
   };
   error?: string;
   timestamp: string;
@@ -74,9 +77,8 @@ export async function POST(request: NextRequest) {
     // 成功レスポンス
     const result = {
       problemText: gasResult.data.problemText,
-      tableData: gasResult.data.tableData,
-      lastModified: gasResult.data.lastModified,
-      sheetInfo: gasResult.data.sheetInfo
+      sheets: gasResult.data.sheets,
+      lastModified: gasResult.data.lastModified
     };
 
     console.log('Data retrieved successfully');

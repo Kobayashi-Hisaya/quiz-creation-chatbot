@@ -60,18 +60,59 @@ class ChatService {
   private getCurrentSystemMessage(): string {
     let spreadsheetInfo = '';
     if (this.currentSpreadsheetData) {
-      spreadsheetInfo = `
-現在のスプレッドシートの内容:
-- 問題文: ${this.currentSpreadsheetData.problemText || '未入力'}
-- データ行数: ${this.currentSpreadsheetData.tableData?.length || 0}行
-- データ列数: ${this.currentSpreadsheetData.tableData?.[0]?.length || 0}列
-- 最終更新: ${this.currentSpreadsheetData.lastModified || '不明'}
+      const { problemText, sheets, lastModified } = this.currentSpreadsheetData;
 
-テーブルデータのサンプル（最初の5行）:
-${this.currentSpreadsheetData.tableData?.slice(0, 5).map((row, i) => 
-  `行${i + 1}: ${row.join(', ')}`
-).join('\n') || 'データなし'}
+      if (!sheets || sheets.length === 0) {
+        spreadsheetInfo = 'スプレッドシートデータは未取得です。まずはスプレッドシートに問題文やデータを入力してください。';
+      } else {
+        // 全シートのデータをフォーマット
+        const sheetsDisplay = sheets.map((sheet, sheetIndex) => {
+          const { sheetName, tableData, lastRow, lastColumn } = sheet;
+
+          // 空行を除外した非空行データ
+          const nonEmptyRows = tableData?.filter(row =>
+            row.some(cell => cell !== null && cell !== undefined && cell.toString().trim() !== '')
+          ) || [];
+
+          // データ表示の決定（大量データの場合はサンプリング）
+          let dataDisplay = '';
+          if (nonEmptyRows.length === 0) {
+            dataDisplay = 'データなし';
+          } else if (nonEmptyRows.length <= 100) {
+            // 100行以下: 全データを表示
+            dataDisplay = nonEmptyRows.map((row, i) =>
+              `行${i + 1}: ${row.join(', ')}`
+            ).join('\n');
+          } else {
+            // 100行超: 最初の50行 + 最後の10行を表示
+            const firstRows = nonEmptyRows.slice(0, 50).map((row, i) =>
+              `行${i + 1}: ${row.join(', ')}`
+            ).join('\n');
+            const lastRows = nonEmptyRows.slice(-10).map((row, i) =>
+              `行${nonEmptyRows.length - 10 + i + 1}: ${row.join(', ')}`
+            ).join('\n');
+            dataDisplay = `${firstRows}\n...(${nonEmptyRows.length - 60}行省略)...\n${lastRows}`;
+          }
+
+          return `
+=== シート${sheetIndex + 1}: "${sheetName}" ===
+使用範囲: ${lastRow}行 × ${lastColumn}列
+非空行数: ${nonEmptyRows.length}行
+
+データ:
+${dataDisplay}
+`;
+        }).join('\n');
+
+        spreadsheetInfo = `
+現在のスプレッドシートの内容:
+- 問題文: ${problemText || '未入力'}
+- シート数: ${sheets.length}
+- 最終更新: ${lastModified || '不明'}
+
+${sheetsDisplay}
       `;
+      }
     } else {
       spreadsheetInfo = 'スプレッドシートデータは未取得です。まずはスプレッドシートに問題文やデータを入力してください。';
     }
