@@ -307,6 +307,84 @@ export const getAllProblemsWithAuthor = async (): Promise<{
 };
 
 /**
+ * グループに属するユーザの問題のみを取得（グループBBS用）
+ */
+export const getProblemsInGroup = async (
+  userId: string
+): Promise<{
+  success: boolean;
+  problems?: (Problem & { author_email?: string })[];
+  error?: string;
+}> => {
+  try {
+    // ユーザーのグループIDを取得
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from('profiles')
+      .select('group_id')
+      .eq('id', userId)
+      .single();
+
+    if (userProfileError) {
+      console.error('Get user profile error:', userProfileError);
+      return { success: false, error: 'ユーザーのグループ情報を取得できません' };
+    }
+
+    const groupId = userProfile?.group_id;
+
+    if (!groupId) {
+      console.warn('User has no group assigned:', userId);
+      return { success: true, problems: [] };
+    }
+
+    // 同じグループのユーザーを取得
+    const { data: groupUsers, error: groupUsersError } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('group_id', groupId);
+
+    if (groupUsersError) {
+      console.error('Get group users error:', groupUsersError);
+      return { success: false, error: 'グループユーザーの取得に失敗しました' };
+    }
+
+    const userIds = (groupUsers || []).map((u) => u.id);
+
+    if (userIds.length === 0) {
+      return { success: true, problems: [] };
+    }
+
+    // グループユーザーが作成した問題を取得
+    const { data: problems, error: problemsError } = await supabase
+      .from('problems')
+      .select('*')
+      .in('user_id', userIds)
+      .order('updated_at', { ascending: false });
+
+    if (problemsError) {
+      console.error('Get problems error:', problemsError);
+      return { success: false, error: '問題の取得に失敗しました' };
+    }
+
+    // プロフィールマップを作成
+    const profileMap = (groupUsers || []).reduce((acc, profile) => {
+      acc[profile.id] = profile.email;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // 問題にメールアドレスを追加
+    const problemsWithAuthor = (problems || []).map((problem) => ({
+      ...problem,
+      author_email: profileMap[problem.user_id] || undefined,
+    }));
+
+    return { success: true, problems: problemsWithAuthor };
+  } catch (error) {
+    console.error('Get problems in group error:', error);
+    return { success: false, error: '予期しないエラーが発生しました' };
+  }
+};
+
+/**
  * ユーザーの管理者権限を更新（管理者用）
  */
 export const updateUserAdmin = async (

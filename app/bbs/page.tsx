@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAllProblemsWithAuthor, getProblemsCommentCounts } from '@/services/problemService';
+import { getProblemsInGroup, getProblemsCommentCounts } from '@/services/problemService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Problem } from '@/types/database';
 
 interface ProblemWithAuthor extends Problem {
@@ -12,23 +13,31 @@ interface ProblemWithAuthor extends Problem {
 
 export default function BBSPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [problems, setProblems] = useState<ProblemWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProblems = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      const result = await getAllProblemsWithAuthor();
+      
+      // グループに属する問題を取得
+      const result = await getProblemsInGroup(user.id);
 
       if (result.success && result.problems) {
         // コメント数を取得
-        const problemIds = result.problems.map(p => p.id);
+        const problemIds = result.problems.map((p) => p.id);
         const commentCounts = await getProblemsCommentCounts(problemIds);
 
         // 問題にコメント数を追加
-        const problemsWithCommentCounts = result.problems.map(p => ({
+        const problemsWithCommentCounts = result.problems.map((p) => ({
           ...p,
           commentCount: commentCounts[p.id] || 0
         }));
@@ -41,7 +50,7 @@ export default function BBSPage() {
     };
 
     fetchProblems();
-  }, []);
+  }, [user]);
 
   const handleProblemClick = (problemId: string) => {
     router.push(`/assessment?problemId=${problemId}`);
