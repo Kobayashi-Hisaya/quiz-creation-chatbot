@@ -345,12 +345,13 @@ export default function AgentAssessmentPage() {
       {/* ヘッダー */}
       <div style={{
         padding: '16px',
-        backgroundColor: '#f8f9fa',
-        borderBottom: '1px solid #ddd',
+        backgroundColor: '#f0f4f8',
+        borderBottom: '2px solid #00d4ff',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        flexShrink: 0
+        flexShrink: 0,
+        boxShadow: '0 4px 15px rgba(0, 212, 255, 0.1)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <h1 style={{
@@ -358,8 +359,9 @@ export default function AgentAssessmentPage() {
             fontSize: '18px',
             margin: 0,
             color: '#2c3e50',
-            borderLeft: '4px solid #9c27b0',
-            paddingLeft: '12px'
+            borderLeft: '4px solid #00d4ff',
+            paddingLeft: '12px',
+            textShadow: '0 0 10px rgba(0, 212, 255, 0.2)'
           }}>
             🤖 自動診断・修正
           </h1>
@@ -401,12 +403,26 @@ export default function AgentAssessmentPage() {
             onClick={handleBackToEdit}
             style={{
               padding: '6px 12px',
-              border: '1px solid #ddd',
+              border: '2px solid #00d4ff',
               borderRadius: '4px',
-              backgroundColor: 'white',
+              backgroundColor: 'transparent',
               cursor: 'pointer',
               fontSize: '12px',
-              fontWeight: '500'
+              fontWeight: '600',
+              color: '#00d4ff',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              textShadow: '0 0 8px rgba(0, 212, 255, 0.5)',
+              boxShadow: '0 0 10px rgba(0, 212, 255, 0.2)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 212, 255, 0.1)';
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 212, 255, 0.5)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 212, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
             ← 戻る
@@ -415,16 +431,27 @@ export default function AgentAssessmentPage() {
             onClick={handleBackToDashboard}
             style={{
               padding: '6px 12px',
-              backgroundColor: '#3498db',
+              backgroundColor: '#00d4ff',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
               fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer'
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              textShadow: '0 0 8px rgba(0,0,0,0.3)',
+              boxShadow: '0 0 15px rgba(0, 212, 255, 0.4)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 212, 255, 0.8), inset 0 0 8px rgba(255,255,255,0.2)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 212, 255, 0.4)';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            Dashboardに戻る
+            Dashboard
           </button>
         </div>
       </div>
