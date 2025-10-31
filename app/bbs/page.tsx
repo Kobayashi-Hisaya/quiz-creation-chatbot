@@ -131,7 +131,7 @@ export default function BBSPage() {
           color: '#666',
           marginBottom: '20px'
         }}>
-          システムの全ユーザが作成した問題を確認できます。
+          同じグループメンバーが作成した問題を確認できます。
         </p>
 
         {loading && (

@@ -52,33 +52,33 @@ export default function AgentAssessmentPage() {
       primary: {
         bg: '#00d4ff',
         hover: '#00a8cc',
-        shadow: 'rgba(0, 212, 255, 0.3)'
+        shadow: 'rgba(0, 212, 255, 0.2)'
       },
       success: {
         bg: '#00ff88',
         hover: '#00cc66',
-        shadow: 'rgba(0, 255, 136, 0.3)'
+        shadow: 'rgba(0, 255, 136, 0.2)'
       },
       warning: {
         bg: '#ffb800',
         hover: '#ff9800',
-        shadow: 'rgba(255, 184, 0, 0.3)'
+        shadow: 'rgba(255, 184, 0, 0.2)'
       },
       danger: {
         bg: '#ff3366',
         hover: '#cc0033',
-        shadow: 'rgba(255, 51, 102, 0.3)'
+        shadow: 'rgba(255, 51, 102, 0.2)'
       },
       secondary: {
         bg: '#4a5568',
         hover: '#2d3748',
-        shadow: 'rgba(74, 85, 104, 0.3)'
+        shadow: 'rgba(74, 85, 104, 0.2)'
       }
     };
 
     const colorSet = colors[type];
     const bg = isDisabled ? '#ccc' : colorSet.bg;
-    const shadow = isDisabled ? 'none' : `0 0 20px ${colorSet.shadow}, 0 0 40px ${colorSet.shadow}`;
+    const shadow = isDisabled ? 'none' : `0 0 10px ${colorSet.shadow}, 0 0 20px ${colorSet.shadow}`;
 
     return {
       ...baseStyle,
@@ -86,7 +86,7 @@ export default function AgentAssessmentPage() {
       boxShadow: shadow,
       color: type === 'success' ? '#000' : 'white',
       fontWeight: 'bold',
-      textShadow: type !== 'success' ? '0 0 10px rgba(0,0,0,0.3)' : 'none'
+      textShadow: type !== 'success' ? '0 0 8px rgba(0,0,0,0.2)' : 'none'
     };
   };
 
@@ -411,17 +411,17 @@ export default function AgentAssessmentPage() {
               fontWeight: '600',
               color: '#00d4ff',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              textShadow: '0 0 8px rgba(0, 212, 255, 0.5)',
-              boxShadow: '0 0 10px rgba(0, 212, 255, 0.2)'
+              textShadow: '0 0 6px rgba(0, 212, 255, 0.3)',
+              boxShadow: '0 0 8px rgba(0, 212, 255, 0.15)'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(0, 212, 255, 0.1)';
-              e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 212, 255, 0.5)';
+              e.currentTarget.style.backgroundColor = 'rgba(0, 212, 255, 0.05)';
+              e.currentTarget.style.boxShadow = '0 0 12px rgba(0, 212, 255, 0.3)';
               e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 212, 255, 0.2)';
+              e.currentTarget.style.boxShadow = '0 0 8px rgba(0, 212, 255, 0.15)';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
@@ -439,15 +439,15 @@ export default function AgentAssessmentPage() {
               fontWeight: '600',
               cursor: 'pointer',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              textShadow: '0 0 8px rgba(0,0,0,0.3)',
-              boxShadow: '0 0 15px rgba(0, 212, 255, 0.4)'
+              textShadow: '0 0 6px rgba(0,0,0,0.2)',
+              boxShadow: '0 0 12px rgba(0, 212, 255, 0.3)'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 212, 255, 0.8), inset 0 0 8px rgba(255,255,255,0.2)';
+              e.currentTarget.style.boxShadow = '0 0 18px rgba(0, 212, 255, 0.5), inset 0 0 6px rgba(255,255,255,0.15)';
               e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 212, 255, 0.4)';
+              e.currentTarget.style.boxShadow = '0 0 12px rgba(0, 212, 255, 0.3)';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
@@ -765,33 +765,18 @@ export default function AgentAssessmentPage() {
             backgroundColor: '#f5f5f5'
           }}>
             <button
-              onClick={handleBackToEdit}
-              style={getButtonStyle('warning') as any}
-              onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 184, 0, 0.6), inset 0 0 10px rgba(255,255,255,0.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 20px rgba(255, 184, 0, 0.3), 0 0 40px rgba(255, 184, 0, 0.3)`;
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              ✏️ 修正
-            </button>
-
-            <button
               onClick={handleRegisterProblem}
               disabled={isSaving}
               style={getButtonStyle('success', isSaving) as any}
               onMouseOver={(e) => {
                 if (!isSaving) {
-                  e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 255, 136, 0.6), inset 0 0 10px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 8px rgba(0,0,0,0.08)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }
               }}
               onMouseOut={(e) => {
                 if (!isSaving) {
-                  e.currentTarget.style.boxShadow = `0 0 20px rgba(0, 255, 136, 0.3), 0 0 40px rgba(0, 255, 136, 0.3)`;
+                  e.currentTarget.style.boxShadow = `0 0 10px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.15)`;
                   e.currentTarget.style.transform = 'translateY(0)';
                 }
               }}
@@ -803,11 +788,11 @@ export default function AgentAssessmentPage() {
               onClick={handleCancel}
               style={getButtonStyle('danger') as any}
               onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 51, 102, 0.6), inset 0 0 10px rgba(255,255,255,0.2)';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.4), inset 0 0 8px rgba(255,255,255,0.15)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 51, 102, 0.3)`;
+                e.currentTarget.style.boxShadow = `0 0 10px rgba(255, 51, 102, 0.2), 0 0 20px rgba(255, 51, 102, 0.15)`;
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
