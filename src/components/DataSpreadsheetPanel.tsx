@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useProblem } from '@/contexts/ProblemContext';
 import { gasClientService, type DataProblemTemplateData } from '@/services/gasClientService';
 
 interface DataSpreadsheetPanelProps {
@@ -24,9 +25,17 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
   const [isConnected, setIsConnected] = useState(false);
   const [currentSpreadsheetId, setCurrentSpreadsheetId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId || null);
+  const [isDataRestored, setIsDataRestored] = useState(false);
+  const [restorationAttempted, setRestorationAttempted] = useState(false);
+  const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+
+  const { spreadsheetState, setSpreadsheetState } = useProblem();
 
   // 新しいデータ整理問題用スプレッドシートを作成
   const createNewSheet = useCallback(async () => {
+    if (isCreatingSheet) return; // 既に作成中の場合は何もしない
+    
+    setIsCreatingSheet(true);
     setIsLoading(true);
     setError(null);
 
@@ -37,13 +46,17 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
       const result = await gasClientService.createDataProblemSheet(userEmail, finalSessionId);
 
       if (result) {
-        setCurrentSpreadsheetId(result.spreadsheet.spreadsheetId);
-        const embedUrl = gasClientService.getEmbedUrl(result.spreadsheet.spreadsheetId);
-        setEmbedUrl(embedUrl);
+        const sheetId = result.spreadsheet.spreadsheetId;
+        setCurrentSpreadsheetId(sheetId);
+        const newEmbedUrl = gasClientService.getEmbedUrl(sheetId);
+        setEmbedUrl(newEmbedUrl);
         setIsConnected(true);
-        
+
+        // persist into ProblemContext (per-user)
+        try { setSpreadsheetState(sheetId, newEmbedUrl); } catch {}
+
         // 親コンポーネントに通知
-        onSpreadsheetCreated?.(result.spreadsheet.spreadsheetId, embedUrl);
+        onSpreadsheetCreated?.(sheetId, newEmbedUrl);
         
         // データ変更の監視を開始（ポーリング → 送信時取得に変更のため無効化）
         // startDataPolling(result.spreadsheet.spreadsheetId);
@@ -56,28 +69,23 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
       onError?.(errorMessage);
     } finally {
       setIsLoading(false);
+      setIsCreatingSheet(false);
     }
-  }, [currentSessionId, userEmail, onSpreadsheetCreated, onError]);
+  }, [currentSessionId, userEmail, onSpreadsheetCreated, onError, setSpreadsheetState, isCreatingSheet]);
 
   // 既存のスプレッドシート接続機能は現在未使用（将来的な拡張用）
 
   // ポーリング機能は削除済み（送信時取得に変更）
 
-  // 手動でデータを取得（内部用）
-  const fetchCurrentData = async () => {
-    if (currentSpreadsheetId) {
-      const data = await gasClientService.getSheetData(currentSpreadsheetId);
-      if (data) {
-        onDataChange?.(data);
-      }
-    }
-  };
+  // (手動取得関数は UI から削除したため内部で直接は使わない)
 
   // 外部から現在のデータを取得（送信時取得用）
   const getCurrentData = useCallback(async (): Promise<DataProblemTemplateData | null> => {
     if (currentSpreadsheetId) {
       try {
-        return await gasClientService.getSheetData(currentSpreadsheetId);
+        const data = await gasClientService.getSheetData(currentSpreadsheetId);
+        if (data) onDataChange?.(data);
+        return data;
       } catch (error) {
         console.error('Error fetching spreadsheet data:', error);
         return null;
@@ -86,7 +94,7 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
       console.warn('No spreadsheet ID available for data fetch');
       return null;
     }
-  }, [currentSpreadsheetId]);
+  }, [currentSpreadsheetId, onDataChange]);
 
   // ポーリング削除により、クリーンアップも不要
 
@@ -99,11 +107,50 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
 
   // セッション開始時に自動でシート作成（初回のみ実行）
   useEffect(() => {
-    if (!isConnected && !isLoading && !error) {
+    // Wait for ProblemContext hydration to complete. spreadsheetState === undefined means still loading.
+    if (spreadsheetState === undefined) return;
+
+    // If we have a persisted spreadsheet from ProblemContext, restore it instead of creating a new one.
+    if (spreadsheetState?.spreadsheetId) {
+      setCurrentSpreadsheetId(spreadsheetState.spreadsheetId);
+      setEmbedUrl(spreadsheetState.embedUrl ?? null);
+      setIsConnected(true);
+      return;
+    }
+
+    if (!isConnected && !isLoading && !error && !isCreatingSheet) {
       createNewSheet();
     }
+  }, [spreadsheetState, isConnected, isLoading, error, isCreatingSheet, createNewSheet]);
+
+  // 既存スプレッドシートのデータ復元（1回のみ実行）
+  useEffect(() => {
+    if (
+      !restorationAttempted &&
+      !isDataRestored &&
+      currentSpreadsheetId &&
+      isConnected &&
+      onDataChange &&
+      spreadsheetState?.spreadsheetId === currentSpreadsheetId &&
+      spreadsheetState?.spreadsheetId // 確実にspreadsheetIdが存在することを確認
+    ) {
+      setRestorationAttempted(true); // 先に試行フラグを立てる
+      const restoreData = async () => {
+        try {
+          const data = await gasClientService.getSheetData(currentSpreadsheetId);
+          if (data && onDataChange) {
+            onDataChange(data);
+            setIsDataRestored(true); // 成功時のみ復元完了フラグを立てる
+          }
+        } catch (error) {
+          console.error('Failed to restore spreadsheet data:', error);
+          // エラー時は試行済みだが復元未完了状態にする
+        }
+      };
+      restoreData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [restorationAttempted, isDataRestored, currentSpreadsheetId, isConnected, spreadsheetState?.spreadsheetId]);
 
   // エラー状態の表示
   if (error) {
@@ -198,56 +245,10 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
         alignItems: 'center'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ 
-            fontSize: '14px', 
-            fontWeight: 'bold', 
-            color: '#2d3748' 
-          }}>
-            📊 データ整理問題シート
-          </span>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: '#48bb78'
-          }} />
-          <span style={{ fontSize: '12px', color: '#4a5568' }}>送信時に最新データを取得</span>
+          {/* バナー・タイトルは削除 */}
         </div>
         
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={fetchCurrentData}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#4299e1',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            🔄 手動更新
-          </button>
-          
-          {currentSpreadsheetId && (
-            <a
-              href={gasClientService.getEditUrl(currentSpreadsheetId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: '6px 12px',
-                backgroundColor: '#48bb78',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-            >
-              🔗 新しいタブで開く
-            </a>
-          )}
-        </div>
+        {/* アクションボタンは削除（送信時に自動取得されるため） */}
       </div>
 
       {/* スプレッドシート埋め込み */}

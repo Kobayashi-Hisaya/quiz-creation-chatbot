@@ -1,5 +1,6 @@
 "use client";
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 
 export type LearningTopic = '制御構造' | 'クラス' | string;
 
@@ -14,6 +15,13 @@ interface ProblemContextType {
   problemData: ProblemData;
   setProblemData: (data: ProblemData) => void;
   setLearningTopic: (topic: LearningTopic) => void;
+  // Spreadsheet persistence helpers
+  spreadsheetState: {
+    spreadsheetId?: string | null;
+    embedUrl?: string | null;
+  } | null | undefined;
+  setSpreadsheetState: (sheetId: string | null, embedUrl?: string | null) => void;
+  clearPersistedSpreadsheet: () => void;
 }
 
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
@@ -29,6 +37,81 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [problemData, setProblemData] = useState<ProblemData>(initialData);
 
+  // Spreadsheet state persisted per-user
+  // undefined = loading/hydrating, null = no persisted value
+  const [spreadsheetState, setSpreadsheetStateInternal] = useState<{
+    spreadsheetId?: string | null;
+    embedUrl?: string | null;
+  } | null | undefined>(undefined);
+
+  const { user } = useAuth();
+  const storageKey = user ? `create-quiz:spreadsheet-state:${user.id}` : null;
+
+  // load persisted spreadsheet state on mount / when user changes
+  useEffect(() => {
+    if (!storageKey) {
+      // no user => consider hydration complete with null
+      setSpreadsheetStateInternal(null);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setSpreadsheetStateInternal({ spreadsheetId: parsed.spreadsheetId ?? null, embedUrl: parsed.embedUrl ?? null });
+      } else {
+        setSpreadsheetStateInternal(null);
+      }
+    } catch (e) {
+      console.warn('Failed to restore spreadsheet state', e);
+      setSpreadsheetStateInternal(null);
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== storageKey) return;
+      try {
+        if (e.newValue) {
+          const parsed = JSON.parse(e.newValue);
+          setSpreadsheetStateInternal({ spreadsheetId: parsed.spreadsheetId ?? null, embedUrl: parsed.embedUrl ?? null });
+        } else {
+          setSpreadsheetStateInternal(null);
+        }
+      } catch (err) {
+        console.warn('Failed to parse storage event for spreadsheet state', err);
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [storageKey]);
+
+  const persistSpreadsheetState = useCallback((sheetId: string | null, embedUrl?: string | null) => {
+    if (!storageKey) return;
+    const payload = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      spreadsheetId: sheetId,
+      embedUrl: embedUrl ?? null,
+    };
+    try {
+      if (sheetId) localStorage.setItem(storageKey, JSON.stringify(payload));
+      else localStorage.removeItem(storageKey);
+    } catch (e) {
+      console.warn('Failed to persist spreadsheet state', e);
+    }
+  }, [storageKey]);
+
+  const setSpreadsheetState = useCallback((sheetId: string | null, embedUrl?: string | null) => {
+    setSpreadsheetStateInternal({ spreadsheetId: sheetId, embedUrl: embedUrl ?? null });
+    persistSpreadsheetState(sheetId, embedUrl ?? null);
+  }, [persistSpreadsheetState]);
+
+  const clearPersistedSpreadsheet = useCallback(() => {
+    if (!storageKey) return;
+    try { localStorage.removeItem(storageKey); } catch {}
+    setSpreadsheetStateInternal(null);
+  }, [storageKey]);
+
   // 学習項目のみを更新する関数
   const setLearningTopic = (topic: LearningTopic) => {
     const updatedData = { ...problemData, learningTopic: topic };
@@ -36,7 +119,7 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ProblemContext.Provider value={{ problemData, setProblemData, setLearningTopic }}>
+    <ProblemContext.Provider value={{ problemData, setProblemData, setLearningTopic, spreadsheetState, setSpreadsheetState, clearPersistedSpreadsheet }}>
       {children}
     </ProblemContext.Provider>
   );

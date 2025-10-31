@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { DataSpreadsheetPanel } from "./DataSpreadsheetPanel";
 import { useProblem } from "../contexts/ProblemContext";
@@ -37,13 +37,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onGetCurrentDataRef 
 }) => {
   const router = useRouter();
-  const { problemData, setProblemData } = useProblem();
+  const { problemData, setProblemData, spreadsheetState, setSpreadsheetState } = useProblem();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
 
   // データ整理問題スプレッドシートからのデータ変更を処理
-  const handleSheetsDataChange = (data: DataProblemTemplateData) => {
+  const handleSheetsDataChange = useCallback((data: DataProblemTemplateData) => {
     // スプレッドシートのデータをProblemContextに反映
     setProblemData({
       problem: data.problemText || '',
@@ -56,11 +56,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     if (onSpreadsheetDataChange) {
       onSpreadsheetDataChange(data);
     }
-  };
+  }, [setProblemData, onSpreadsheetDataChange]);
 
   // スプレッドシート作成時の処理
   const handleSpreadsheetCreated = (sheetId: string, embedUrl: string) => {
     setSpreadsheetId(sheetId);
+    try { setSpreadsheetState(sheetId, embedUrl); } catch {}
     console.log('Spreadsheet created:', sheetId, embedUrl);
     
     // 親コンポーネント（HomePage）にも通知
@@ -68,6 +69,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       onSpreadsheetCreated(sheetId, embedUrl);
     }
   };
+
+  // ProblemContext から復元されたスプレッドシートIDを反映
+  React.useEffect(() => {
+    if (spreadsheetState?.spreadsheetId) {
+      setSpreadsheetId(spreadsheetState.spreadsheetId);
+    }
+  }, [spreadsheetState]);
 
   // エラーハンドリング
   const handleSheetsError = (errorMessage: string) => {
@@ -129,17 +137,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       </div>
 
       {/* 現在のデータ表示（デバッグ用） */}
-      <div style={{
-        padding: "12px",
-        backgroundColor: "#f8f9fa",
-        borderTop: "1px solid #ddd",
-        fontSize: "12px",
-        color: "#666"
-      }}>
-        <div><strong>問題種別:</strong> データ整理・表操作問題</div>
-        <div><strong>スプレッドシートID:</strong> {spreadsheetId ? `${spreadsheetId.slice(0, 20)}...` : '作成中'}</div>
-        <div><strong>問題文:</strong> {problemData.problem ? `${problemData.problem.slice(0, 50)}...` : '未入力'}</div>
-      </div>
+      {/* 現在のデータ表示（デバッグ用） は削除（運用/UXにより不要） */}
 
       {/* フッター */}
       <div

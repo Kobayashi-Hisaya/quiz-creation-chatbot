@@ -3,6 +3,7 @@ import type { Message } from '../types/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { chatService } from '../services/chatService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { DataProblemTemplateData } from '../services/gasClientService';
 
 interface ChatContainerProps {
@@ -14,10 +15,15 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   spreadsheetData, 
   fetchLatestSpreadsheetData 
 }) => {
+  const { user } = useAuth();
+
+  // per-user storage key
+  const storageKey = user ? `chatMessages:${user.id}` : 'chatMessages:anon';
+
   // localStorageからメッセージ履歴を読み込む
   const loadMessages = (): Message[] => {
     try {
-      const stored = localStorage.getItem('chatMessages');
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsedMessages = JSON.parse(stored) as Message[];
         return parsedMessages.map((msg) => ({
@@ -43,10 +49,30 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     }
   };
 
-  // messagesが変更されたらlocalStorageに保存
+  // messagesが変更されたらlocalStorageに保存（デバウンス）
   useEffect(() => {
-    saveMessages(messages);
-  }, [messages]);
+    const handle = setTimeout(() => saveMessages(messages), 300);
+    return () => clearTimeout(handle);
+  }, [messages, storageKey]);
+
+  // storage イベントで他タブからの更新を反映
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== storageKey) return;
+      try {
+        if (e.newValue) {
+          const parsed = JSON.parse(e.newValue) as Message[];
+          setMessages(parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
+        } else {
+          setMessages([]);
+        }
+      } catch (err) {
+        console.warn('Failed to parse chat storage event', err);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [storageKey]);
 
   // スプレッドシートデータが変更されたらChatServiceに反映
   useEffect(() => {
@@ -108,7 +134,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const handleClearHistory = () => {
     chatService.clearHistory();
     setMessages([]);
-    localStorage.removeItem('chatMessages');
+    try { localStorage.removeItem(storageKey); } catch {}
   };
 
   return (
