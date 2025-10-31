@@ -271,6 +271,32 @@ const QuizCreationPage: React.FC = () => {
     setShowTitlePopup(true);
   };
 
+  // SessionStorageから復元（agent-assessmentから戻ってきた場合）
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('problemDataForAssessment');
+      if (stored) {
+        const sessionData = JSON.parse(stored);
+        const { problemData: savedProblemData, chatHistories } = sessionData;
+        
+        console.log('[CreateMCQ] SessionStorageから復元:', sessionData);
+        
+        // 状態を復元
+        setCreationMode(savedProblemData.language ? 'auto' : 'manual');
+        setExplanation(savedProblemData.explanation || '');
+        setCodeWithBlanks(savedProblemData.code_with_blanks || problemData.code);
+        setManualExplanation(savedProblemData.explanation || '');
+        setManualChoices(savedProblemData.choices || []);
+        setEditedProblem(savedProblemData.problem_text || problemData.problem);
+        
+        // 復元完了をログ出力
+        console.log('[CreateMCQ] 状態を復元しました');
+      }
+    } catch (err) {
+      console.error('[CreateMCQ] SessionStorage復元エラー:', err);
+    }
+  }, []); // マウント時のみ実行
+
   const handleTitleSubmit = async (title: string) => {
     console.log('=== タイトル入力完了 ===');
     console.log('title:', title);
@@ -323,48 +349,33 @@ const QuizCreationPage: React.FC = () => {
         });
       }
 
-      console.log('=== Supabaseに保存開始 ===');
+      console.log('=== SessionStorage に問題データを保存開始 ===');
       console.log('chatHistories:', chatHistories);
 
-      // Supabaseに保存
-      const userInfo = user ? { id: user.id, email: user.email } : undefined;
-      console.log('=== ユーザー情報を渡して保存 ===');
-      console.log('userInfo:', userInfo);
-      const result = await saveProblem(problemToSave, chatHistories, userInfo);
+      // SessionStorage に問題データを保存
+      const sessionData = {
+        problemData: problemToSave,
+        chatHistories: chatHistories,
+      };
 
-      console.log('=== 保存結果 ===');
-      console.log('result:', result);
+      sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
+      console.log('=== SessionStorage に保存完了 ===');
 
-      if (result.success) {
-        console.log('保存成功！');
-        setHasUnsavedChanges(false);
-        alert('問題が保存されました！');
-        router.push('/dashboard');
-      } else {
-        console.error('保存失敗:', result.error);
-        
-        // エラーメッセージをより詳細に表示
-        let errorMessage = `保存に失敗しました: ${result.error}`;
-        if (result.error?.includes('タイムアウト')) {
-          errorMessage += '\n\nネットワーク接続を確認して、もう一度お試しください。';
-        } else if (result.error?.includes('認証')) {
-          errorMessage += '\n\nログイン状態を確認してください。';
-        } else if (result.error?.includes('接続')) {
-          errorMessage += '\n\nデータベース接続に問題があります。しばらく待ってからお試しください。';
-        }
-        
-        alert(errorMessage);
-      }
+      setHasUnsavedChanges(false);
+
+      // agent-assessment ページに遷移
+      console.log('=== agent-assessment ページへ遷移 ===');
+      router.push('/agent-assessment');
     } catch (error) {
       console.error('Save error:', error);
       console.error('Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : 'No stack trace'
       });
-      alert('保存中にエラーが発生しました');
+      alert('問題の準備中にエラーが発生しました');
     } finally {
       setIsSaving(false);
-      console.log('=== 保存処理終了 ===');
+      console.log('=== 処理終了 ===');
     }
   };
 
