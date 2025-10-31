@@ -208,15 +208,6 @@ function doGet(e) {
     }))
     .setMimeType(ContentService.MimeType.JSON);
 }
-
-/**
- * テスト関数
- */
-function testCreateSheet() {
-  const result = createDataProblemSheet('test@example.com', 'test-session-123');
-  console.log('Test result:', result);
-  return result;
-}
 ```
 
 ## 🔧 **主な修正点**

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useProblem } from '@/contexts/ProblemContext';
 import { gasClientService, type DataProblemTemplateData } from '@/services/gasClientService';
 
@@ -28,6 +28,7 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
   const [isDataRestored, setIsDataRestored] = useState(false);
   const [restorationAttempted, setRestorationAttempted] = useState(false);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+  const [isSpreadsheetRestored, setIsSpreadsheetRestored] = useState(false);
 
   const { spreadsheetState, setSpreadsheetState } = useProblem();
 
@@ -73,6 +74,14 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
     }
   }, [currentSessionId, userEmail, onSpreadsheetCreated, onError, setSpreadsheetState, isCreatingSheet]);
 
+  // createNewSheetのrefを作成（useEffectの依存配列から除外するため）
+  const createNewSheetRef = useRef(createNewSheet);
+
+  // createNewSheetが更新されたらrefも更新
+  useEffect(() => {
+    createNewSheetRef.current = createNewSheet;
+  }, [createNewSheet]);
+
   // 既存のスプレッドシート接続機能は現在未使用（将来的な拡張用）
 
   // ポーリング機能は削除済み（送信時取得に変更）
@@ -103,25 +112,34 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
     if (onGetCurrentDataRef) {
       onGetCurrentDataRef(getCurrentData);
     }
-  }, [currentSpreadsheetId, onGetCurrentDataRef, getCurrentData]);
+  }, [onGetCurrentDataRef, getCurrentData]);
 
   // セッション開始時に自動でシート作成（初回のみ実行）
   useEffect(() => {
-    // Wait for ProblemContext hydration to complete. spreadsheetState === undefined means still loading.
-    if (spreadsheetState === undefined) return;
+    // spreadsheetStateは常にnullまたは値を持つ（undefinedなし）
 
     // If we have a persisted spreadsheet from ProblemContext, restore it instead of creating a new one.
-    if (spreadsheetState?.spreadsheetId) {
+    if (spreadsheetState?.spreadsheetId && !isSpreadsheetRestored) {
       setCurrentSpreadsheetId(spreadsheetState.spreadsheetId);
       setEmbedUrl(spreadsheetState.embedUrl ?? null);
       setIsConnected(true);
+      setIsSpreadsheetRestored(true);
       return;
     }
 
-    if (!isConnected && !isLoading && !error && !isCreatingSheet) {
-      createNewSheet();
+    // Only create if: no saved sheet AND not restored yet
+    if (
+      spreadsheetState === null &&
+      !isSpreadsheetRestored &&
+      !isConnected &&
+      !isLoading &&
+      !error &&
+      !isCreatingSheet
+    ) {
+      createNewSheetRef.current();
     }
-  }, [spreadsheetState, isConnected, isLoading, error, isCreatingSheet, createNewSheet]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spreadsheetState, isLoading, error, isCreatingSheet]);
 
   // 既存スプレッドシートのデータ復元（1回のみ実行）
   useEffect(() => {
@@ -235,25 +253,9 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
       margin: '0',
       padding: '0'
     }}>
-      {/* ツールバー */}
-      <div style={{
-        padding: '12px 16px',
-        backgroundColor: '#f8f9fa',
-        borderBottom: '1px solid #e2e8f0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* バナー・タイトルは削除 */}
-        </div>
-        
-        {/* アクションボタンは削除（送信時に自動取得されるため） */}
-      </div>
-
       {/* スプレッドシート埋め込み */}
       {embedUrl && (
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, minHeight: 0, backgroundColor: 'white' }}>
           <iframe
             src={embedUrl}
             style={{

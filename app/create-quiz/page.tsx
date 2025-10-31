@@ -13,6 +13,21 @@ import type { DataProblemTemplateData } from '@/services/gasClientService';
 const SPLIT_STORAGE_KEY = 'create-quiz-split';
 const DEFAULT_SPLIT_SIZES: number[] = [50, 50];
 
+// splitSizesの初期値をlocalStorageから同期的に読み込む
+const getInitialSplitSizes = (): number[] => {
+  if (typeof window === 'undefined') return DEFAULT_SPLIT_SIZES;
+  try {
+    const raw = localStorage.getItem(SPLIT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as number[];
+      if (Array.isArray(parsed) && parsed.length === 2) return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to restore split sizes', e);
+  }
+  return DEFAULT_SPLIT_SIZES;
+};
+
 const HomePage: React.FC = () => {
   const { problemData, setLearningTopic, spreadsheetState } = useProblem();
   const [showTopicSelector, setShowTopicSelector] = useState(false);
@@ -22,9 +37,9 @@ const HomePage: React.FC = () => {
   const getCurrentDataRef = useRef<(() => Promise<DataProblemTemplateData | null>) | null>(null);
   const [isDataRestored, setIsDataRestored] = useState(false);
   const [restorationAttempted, setRestorationAttempted] = useState(false);
-  
+
   // Split sizes (percent).
-  const [splitSizes, setSplitSizes] = useState<number[] | null>(null);
+  const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
   // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
   useEffect(() => {
@@ -97,28 +112,8 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  // restore persisted split sizes on client mount
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem(SPLIT_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as number[];
-          if (Array.isArray(parsed) && parsed.length === 2) setSplitSizes(parsed);
-          else setSplitSizes(DEFAULT_SPLIT_SIZES);
-        } else {
-          setSplitSizes(DEFAULT_SPLIT_SIZES);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to restore split sizes', e);
-      setSplitSizes(DEFAULT_SPLIT_SIZES);
-    }
-  }, []);
-
   // attach double-click on gutters to reset to default sizes
   useEffect(() => {
-    if (!splitSizes) return;
     const onDbl = () => {
       setSplitSizes(DEFAULT_SPLIT_SIZES);
       try { localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify(DEFAULT_SPLIT_SIZES)); } catch {}
@@ -127,49 +122,7 @@ const HomePage: React.FC = () => {
     const gutters = Array.from(document.querySelectorAll('[class*="gutter"]')) as HTMLElement[];
     gutters.forEach(g => g.addEventListener('dblclick', onDbl));
     return () => gutters.forEach(g => g.removeEventListener('dblclick', onDbl));
-  }, [splitSizes]);
-
-  // If splitSizes not ready yet, render the original non-resizable layout to avoid blank UI during hydration
-  if (!splitSizes) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        height: '100vh',
-        width: '100vw',
-        overflow: 'hidden',
-        minHeight: '600px'
-      }}>
-        <div style={{ 
-          flex: '1',
-          height: '100vh',
-          minWidth: '300px',
-          maxWidth: '50%'
-        }}>
-          <ChatContainer 
-            spreadsheetData={currentSpreadsheetData} 
-            fetchLatestSpreadsheetData={fetchLatestSpreadsheetData}
-          />
-        </div>
-        <div style={{ 
-          flex: '1',
-          height: '100vh',
-          minWidth: '400px',
-          maxWidth: '50%'
-        }}>
-          <RightPanel 
-            onSpreadsheetDataChange={handleSpreadsheetDataChange}
-            onSpreadsheetCreated={handleSpreadsheetCreated}
-            onGetCurrentDataRef={handleGetCurrentDataRef}
-          />
-        </div>
-        
-        <LearningTopicSelector 
-          isOpen={showTopicSelector}
-          onSelect={handleTopicSelect}
-        />
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <>

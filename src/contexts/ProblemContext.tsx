@@ -19,12 +19,34 @@ interface ProblemContextType {
   spreadsheetState: {
     spreadsheetId?: string | null;
     embedUrl?: string | null;
-  } | null | undefined;
+  } | null;
   setSpreadsheetState: (sheetId: string | null, embedUrl?: string | null) => void;
   clearPersistedSpreadsheet: () => void;
 }
 
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
+
+// localStorageから同期的に初期値を読み込む関数
+const getInitialSpreadsheetState = (userId: string | null): { spreadsheetId?: string | null; embedUrl?: string | null } | null => {
+  if (!userId || typeof window === 'undefined') return null;
+
+  const storageKey = `create-quiz:spreadsheet-state:${userId}`;
+
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        spreadsheetId: parsed.spreadsheetId ?? null,
+        embedUrl: parsed.embedUrl ?? null
+      };
+    }
+  } catch (e) {
+    console.warn('Failed to restore spreadsheet state', e);
+  }
+
+  return null;
+};
 
 export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 初期データ（メモリ内のみで管理）
@@ -37,35 +59,26 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [problemData, setProblemData] = useState<ProblemData>(initialData);
 
+  const { user } = useAuth();
+
   // Spreadsheet state persisted per-user
-  // undefined = loading/hydrating, null = no persisted value
+  // 初期値として同期的にlocalStorageから読み込む
   const [spreadsheetState, setSpreadsheetStateInternal] = useState<{
     spreadsheetId?: string | null;
     embedUrl?: string | null;
-  } | null | undefined>(undefined);
+  } | null>(() => getInitialSpreadsheetState(user?.id ?? null));
 
-  const { user } = useAuth();
   const storageKey = user ? `create-quiz:spreadsheet-state:${user.id}` : null;
 
-  // load persisted spreadsheet state on mount / when user changes
+  // ユーザー変更時にlocalStorageから再読み込み
   useEffect(() => {
-    if (!storageKey) {
-      // no user => consider hydration complete with null
-      setSpreadsheetStateInternal(null);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setSpreadsheetStateInternal({ spreadsheetId: parsed.spreadsheetId ?? null, embedUrl: parsed.embedUrl ?? null });
-      } else {
-        setSpreadsheetStateInternal(null);
-      }
-    } catch (e) {
-      console.warn('Failed to restore spreadsheet state', e);
-      setSpreadsheetStateInternal(null);
-    }
+    const newState = getInitialSpreadsheetState(user?.id ?? null);
+    setSpreadsheetStateInternal(newState);
+  }, [user?.id]);
+
+  // storageイベントのリスナー（他のタブでの変更を検知）
+  useEffect(() => {
+    if (!storageKey) return;
 
     const onStorage = (e: StorageEvent) => {
       if (e.key !== storageKey) return;

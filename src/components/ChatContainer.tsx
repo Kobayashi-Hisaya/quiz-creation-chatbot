@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Message } from '../types/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -41,19 +41,19 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   // メッセージをlocalStorageに保存
-  const saveMessages = (msgs: Message[]) => {
+  const saveMessages = useCallback((msgs: Message[]) => {
     try {
-      localStorage.setItem('chatMessages', JSON.stringify(msgs));
+      localStorage.setItem(storageKey, JSON.stringify(msgs));
     } catch (error) {
       console.error('Failed to save messages to localStorage:', error);
     }
-  };
+  }, [storageKey]);
 
   // messagesが変更されたらlocalStorageに保存（デバウンス）
   useEffect(() => {
     const handle = setTimeout(() => saveMessages(messages), 300);
     return () => clearTimeout(handle);
-  }, [messages, storageKey]);
+  }, [messages, saveMessages]);
 
   // storage イベントで他タブからの更新を反映
   useEffect(() => {
@@ -156,19 +156,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         alignItems: 'center'
       }}>
         <span style={{ fontWeight: 'bold' }}>作問用チャットボット</span>
-        <button
-          onClick={handleClearHistory}
-          style={{
-            padding: '6px 12px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '12px'
-          }}
-        >
-          🗑️ 履歴クリア
-        </button>
       </div>
       
       <MessageList messages={messages} isLoading={isLoading} />
