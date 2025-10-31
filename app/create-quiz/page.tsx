@@ -29,9 +29,8 @@ const getInitialSplitSizes = (): number[] => {
 };
 
 const HomePage: React.FC = () => {
-  const { problemData, setLearningTopic, spreadsheetState } = useProblem();
+  const { problemData, setLearningTopic, spreadsheetState, hasTopicBeenSelected } = useProblem();
   const [showTopicSelector, setShowTopicSelector] = useState(false);
-  const [hasSelectedTopic, setHasSelectedTopic] = useState(false);
   const [currentSpreadsheetData, setCurrentSpreadsheetData] = useState<DataProblemTemplateData | null>(null);
   const [, setCurrentSpreadsheetId] = useState<string | null>(null);
   const getCurrentDataRef = useRef<(() => Promise<DataProblemTemplateData | null>) | null>(null);
@@ -43,10 +42,10 @@ const HomePage: React.FC = () => {
 
   // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
   useEffect(() => {
-    if (!hasSelectedTopic || !problemData.learningTopic) {
+    if (!hasTopicBeenSelected) {
       setShowTopicSelector(true);
     }
-  }, [hasSelectedTopic, problemData.learningTopic]);
+  }, [hasTopicBeenSelected]);
 
   // ページロード時にスプレッドシートデータを復元（1回のみ実行）
   useEffect(() => {
@@ -78,7 +77,6 @@ const HomePage: React.FC = () => {
   const handleTopicSelect = (topic: LearningTopic) => {
     setLearningTopic(topic);
     chatService.setLearningTopic(topic);
-    setHasSelectedTopic(true);
     setShowTopicSelector(false);
   };
 

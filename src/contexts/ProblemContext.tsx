@@ -22,6 +22,9 @@ interface ProblemContextType {
   } | null;
   setSpreadsheetState: (sheetId: string | null, embedUrl?: string | null) => void;
   clearPersistedSpreadsheet: () => void;
+  // Learning topic selection state
+  hasTopicBeenSelected: boolean;
+  clearTopicSelection: () => void;
 }
 
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
@@ -69,6 +72,17 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
   } | null>(() => getInitialSpreadsheetState(user?.id ?? null));
 
   const storageKey = user ? `create-quiz:spreadsheet-state:${user.id}` : null;
+  const topicSelectionKey = user ? `create-quiz:learning-topic-selected:${user.id}` : null;
+
+  // Learning topic selection state
+  const [hasTopicBeenSelected, setHasTopicBeenSelected] = useState<boolean>(() => {
+    if (!topicSelectionKey || typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem(topicSelectionKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // ユーザー変更時にlocalStorageから再読み込み
   useEffect(() => {
@@ -126,13 +140,44 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [storageKey]);
 
   // 学習項目のみを更新する関数
-  const setLearningTopic = (topic: LearningTopic) => {
+  const setLearningTopic = useCallback((topic: LearningTopic) => {
     const updatedData = { ...problemData, learningTopic: topic };
     setProblemData(updatedData);
-  };
+
+    // localStorage に選択済みフラグを保存
+    if (topicSelectionKey) {
+      try {
+        localStorage.setItem(topicSelectionKey, 'true');
+      } catch (e) {
+        console.warn('Failed to save topic selection state', e);
+      }
+    }
+    setHasTopicBeenSelected(true);
+  }, [problemData, topicSelectionKey]);
+
+  // 学習項目選択状態をクリアする関数
+  const clearTopicSelection = useCallback(() => {
+    if (topicSelectionKey) {
+      try {
+        localStorage.removeItem(topicSelectionKey);
+      } catch (e) {
+        console.warn('Failed to clear topic selection state', e);
+      }
+    }
+    setHasTopicBeenSelected(false);
+  }, [topicSelectionKey]);
 
   return (
-    <ProblemContext.Provider value={{ problemData, setProblemData, setLearningTopic, spreadsheetState, setSpreadsheetState, clearPersistedSpreadsheet }}>
+    <ProblemContext.Provider value={{
+      problemData,
+      setProblemData,
+      setLearningTopic,
+      spreadsheetState,
+      setSpreadsheetState,
+      clearPersistedSpreadsheet,
+      hasTopicBeenSelected,
+      clearTopicSelection
+    }}>
       {children}
     </ProblemContext.Provider>
   );

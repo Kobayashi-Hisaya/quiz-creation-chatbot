@@ -21,7 +21,7 @@ import BackToDashboardButton from '@/components/BackToDashboardButton';
 
 const QuizCreationPage: React.FC = () => {
   const router = useRouter();
-  const { problemData } = useProblem();
+  const { problemData, clearTopicSelection } = useProblem();
   const { user, profile, session, loading } = useAuth();
   
   // 問題データの確認
@@ -306,6 +306,10 @@ const QuizCreationPage: React.FC = () => {
       if (result.success) {
         console.log('保存成功！');
         setHasUnsavedChanges(false);
+
+        // 学習項目選択状態をクリア（次回の問題作成時に再度選択させる）
+        clearTopicSelection();
+
         alert('問題が保存されました！');
         router.push('/dashboard');
       } else {
