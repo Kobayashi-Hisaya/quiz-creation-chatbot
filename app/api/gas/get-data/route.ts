@@ -16,6 +16,7 @@ interface GASDataResponse {
   success: boolean;
   data?: {
     problemText: string;
+    answerText?: string;
     sheets: SheetData[];
     lastModified: string;
   };
@@ -74,9 +75,10 @@ export async function POST(request: NextRequest) {
       throw new Error('No data returned from Google Apps Script');
     }
 
-    // 成功レスポンス
+    // 成功レスポンス -- GAS の answerText を透過して返します
     const result = {
       problemText: gasResult.data.problemText,
+      answerText: gasResult.data?.answerText || undefined,
       sheets: gasResult.data.sheets,
       lastModified: gasResult.data.lastModified
     };

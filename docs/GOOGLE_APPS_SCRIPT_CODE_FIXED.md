@@ -94,16 +94,28 @@ function getSheetData(spreadsheetId) {
     // すべてのシートを取得
     const allSheets = spreadsheet.getSheets();
 
-    // 問題文は最初のシートのA5:A15から取得
+    // 新仕様: 単純化のため A2 を問題文、A5 を answerText (単一セル) として取得します
     let problemText = '';
+    let answerText = '';
     if (allSheets.length > 0) {
       const firstSheet = allSheets[0];
-      const problemTextRange = firstSheet.getRange('A5:A15');
-      const problemTextValues = problemTextRange.getValues();
-      problemText = problemTextValues
-        .map(row => row[0] || '')
-        .filter(text => text.toString().trim() !== '')
-        .join('\n');
+      try {
+        // A2: 問題文（単一セル）
+        const a2 = firstSheet.getRange('A2').getValue();
+        problemText = a2 ? String(a2) : '';
+      } catch (e) {
+        console.warn('Failed to read A2 for problemText:', e && e.message ? e.message : e);
+        problemText = '';
+      }
+
+      try {
+        // A5: answerText（単一セル）
+        const a5 = firstSheet.getRange('A5').getValue();
+        answerText = a5 ? String(a5) : '';
+      } catch (e) {
+        console.warn('Failed to read A5 for answerText:', e && e.message ? e.message : e);
+        answerText = '';
+      }
     }
 
     const sheets = []; // 全シートのデータを格納する配列
@@ -129,8 +141,11 @@ function getSheetData(spreadsheetId) {
     }
 
     // 最終的な結果オブジェクト
+    // この GAS は A2/A5 を素直に返します。
+    // - frontend 側で answerText を problemData.code にマッピングする設計 (Aプラン)
     const result = {
       problemText: problemText,
+      answerText: answerText,
       sheets: sheets,
       lastModified: new Date().toISOString()
     };

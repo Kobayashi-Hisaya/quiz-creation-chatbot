@@ -47,7 +47,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     // スプレッドシートのデータをProblemContextに反映
     setProblemData({
       problem: data.problemText || '',
-      code: '', // データ整理問題では不要
+      // GAS の answerText を frontend の problemData.code にマッピングする (Aプラン)
+      code: data.code || data.answerText || '',
       language: 'data_analysis', // 新しいカテゴリ
       learningTopic: 'data_analysis', // データ整理固定
     });
