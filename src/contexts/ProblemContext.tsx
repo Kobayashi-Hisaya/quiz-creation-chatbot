@@ -8,12 +8,15 @@ interface ProblemData {
   code: string;
   language: string;
   learningTopic: LearningTopic;
+  expectedAccuracy: number | null; // 予想正答率（0-100%）
+  expectedAnswerTime: number | null; // 予想解答時間（秒）
 }
 
 interface ProblemContextType {
   problemData: ProblemData;
   setProblemData: (data: ProblemData) => void;
   setLearningTopic: (topic: LearningTopic) => void;
+  setAssignmentData: (accuracy: number | null, answerTime: number | null) => void;
 }
 
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
@@ -24,7 +27,9 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
     problem: '',
     code: '',
     language: 'typescript',
-    learningTopic: '制御構造'
+    learningTopic: '制御構造',
+    expectedAccuracy: null,
+    expectedAnswerTime: null,
   };
 
   const [problemData, setProblemData] = useState<ProblemData>(initialData);
@@ -35,8 +40,14 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setProblemData(updatedData);
   };
 
+  // 作問課題データを更新する関数
+  const setAssignmentData = (accuracy: number | null, answerTime: number | null) => {
+    const updatedData = { ...problemData, expectedAccuracy: accuracy, expectedAnswerTime: answerTime };
+    setProblemData(updatedData);
+  };
+
   return (
-    <ProblemContext.Provider value={{ problemData, setProblemData, setLearningTopic }}>
+    <ProblemContext.Provider value={{ problemData, setProblemData, setLearningTopic, setAssignmentData }}>
       {children}
     </ProblemContext.Provider>
   );

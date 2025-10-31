@@ -19,6 +19,8 @@ export interface Problem {
   choices: QuizChoice[] | null; // JSONB
   explanation: string | null;
   title: string | null;
+  expected_accuracy: number | null; // 予想正答率（0-100%）
+  expected_answer_time: number | null; // 予想解答時間（秒）
   // データ整理問題用フィールド
   spreadsheet_url: string | null;
   spreadsheet_id: string | null;

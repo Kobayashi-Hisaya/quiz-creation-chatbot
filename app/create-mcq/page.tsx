@@ -310,7 +310,11 @@ const QuizCreationPage: React.FC = () => {
       const finalChoices = creationMode === 'auto' ? generatedQuiz?.choices : manualChoices;
       const finalCodeWithBlanks = creationMode === 'auto' ? generatedQuiz?.codeWithBlanks : codeWithBlanks;
 
-      // 問題データを準備（title を含める）
+      // ProblemContextから作問課題データを取得
+      const expectedAccuracy = problemData.expectedAccuracy;
+      const expectedAnswerTime = problemData.expectedAnswerTime;
+
+      // 問題データを準備（title、expected_accuracy、expected_answer_time を含める）
       const problemToSave: SaveProblemData = {
         problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
         code: problemData.code,
@@ -320,9 +324,11 @@ const QuizCreationPage: React.FC = () => {
         choices: finalChoices || [],
         explanation: finalExplanation,
         title: title,
+        expected_accuracy: expectedAccuracy,
+        expected_answer_time: expectedAnswerTime,
       };
 
-      console.log('=== 保存データ準備完了（タイトル付き） ===');
+      console.log('=== 保存データ準備完了（タイトル+作問課題付き） ===');
       console.log('problemToSave:', problemToSave);
 
       // チャット履歴を準備
@@ -383,7 +389,6 @@ const QuizCreationPage: React.FC = () => {
     console.log('=== タイトル入力キャンセル ===');
     setShowTitlePopup(false);
     setPendingTitle(null);
-
   };
 
   return (

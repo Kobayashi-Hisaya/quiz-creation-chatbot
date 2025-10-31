@@ -13,6 +13,8 @@ export interface SaveProblemData {
   choices: QuizChoice[] | null;
   explanation: string | null;
   title: string | null;
+  expected_accuracy?: number | null;
+  expected_answer_time?: number | null;
   // データ整理問題用フィールド
   spreadsheet_url?: string | null;
   spreadsheet_id?: string | null;

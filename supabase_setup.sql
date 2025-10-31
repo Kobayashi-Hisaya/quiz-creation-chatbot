@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS problems (
   choices JSONB,
   explanation TEXT,
   title TEXT,
+  expected_accuracy INTEGER,
+  expected_answer_time INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
