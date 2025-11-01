@@ -39,3 +39,7 @@ tmp/
 temp/
 
 /.next/
+
+memo.md
+/.claude
+/.github

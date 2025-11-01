@@ -1,0 +1,58 @@
+.quiz-split {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+.quiz-split > .gutter {
+  cursor: col-resize;
+  width: 8px;
+  background: transparent;
+}
+
+.quiz-split > div {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Ensure children don't stack internally due to accidental column flex */
+.quiz-split > div > * {
+  display: block;
+}
+
+/* 汎用: 横分割（左右）用クラス */
+.split-horizontal {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 100%;
+  width: 100%;
+}
+
+.split-horizontal > .gutter {
+  cursor: col-resize;
+  width: 8px;
+  background-color: #ddd;
+}
+
+.split-horizontal > div {
+  overflow: hidden;
+}
+
+/* 汎用: 縦分割（上下）用クラス */
+.split-vertical {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100%;
+  width: 100%;
+}
+
+.split-vertical > .gutter {
+  cursor: row-resize;
+  height: 8px;
+  background-color: #ddd;
+}
+
+.split-vertical > div {
+  overflow: hidden;
+}
