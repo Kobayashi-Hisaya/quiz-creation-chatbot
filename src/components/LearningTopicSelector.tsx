@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export type LearningTopic = '制御構造' | 'クラス' | string;
+export type LearningTopic = 'モンテカルロ法' | string;
 
 interface LearningTopicSelectorProps {
   isOpen: boolean;
@@ -8,7 +8,7 @@ interface LearningTopicSelectorProps {
 }
 
 export const LearningTopicSelector: React.FC<LearningTopicSelectorProps> = ({ isOpen, onSelect }) => {
-  const [selectedTopic, setSelectedTopic] = useState<'制御構造' | 'クラス' | 'その他'>('制御構造');
+  const [selectedTopic, setSelectedTopic] = useState<'モンテカルロ法' | 'その他'>('モンテカルロ法');
   const [customTopic, setCustomTopic] = useState('');
 
   if (!isOpen) return null;
@@ -71,47 +71,24 @@ export const LearningTopicSelector: React.FC<LearningTopicSelectorProps> = ({ is
             marginBottom: '12px',
             cursor: 'pointer',
             padding: '12px',
-            border: selectedTopic === '制御構造' ? '2px solid #2196f3' : '1px solid #ddd',
+            border: selectedTopic === 'モンテカルロ法' ? '2px solid #2196f3' : '1px solid #ddd',
             borderRadius: '8px',
-            backgroundColor: selectedTopic === '制御構造' ? '#f0f8ff' : 'white'
+            backgroundColor: selectedTopic === 'モンテカルロ法' ? '#f0f8ff' : 'white'
           }}>
             <input
               type="radio"
               name="learningTopic"
-              value="制御構造"
-              checked={selectedTopic === '制御構造'}
-              onChange={(e) => setSelectedTopic(e.target.value as '制御構造')}
+              value="モンテカルロ法"
+              checked={selectedTopic === 'モンテカルロ法'}
+              onChange={(e) => setSelectedTopic(e.target.value as 'モンテカルロ法')}
               style={{ marginRight: '8px' }}
             />
-            <strong>制御構造</strong>
+            <strong>モンテカルロ法</strong>
             <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', marginLeft: '24px' }}>
-              if文、for文、while文などの条件分岐や繰り返し処理
+              乱数を用いたシミュレーション方法
             </div>
           </label>
-          
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '12px',
-            cursor: 'pointer',
-            padding: '12px',
-            border: selectedTopic === 'クラス' ? '2px solid #2196f3' : '1px solid #ddd',
-            borderRadius: '8px',
-            backgroundColor: selectedTopic === 'クラス' ? '#f0f8ff' : 'white'
-          }}>
-            <input
-              type="radio"
-              name="learningTopic"
-              value="クラス"
-              checked={selectedTopic === 'クラス'}
-              onChange={(e) => setSelectedTopic(e.target.value as 'クラス')}
-              style={{ marginRight: '8px' }}
-            />
-            <strong>クラス</strong>
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', marginLeft: '24px' }}>
-              オブジェクト指向プログラミング、クラスの設計と実装
-            </div>
-          </label>
-          
+                    
           <label style={{ 
             display: 'block', 
             marginBottom: '12px',
@@ -129,7 +106,7 @@ export const LearningTopicSelector: React.FC<LearningTopicSelectorProps> = ({ is
               onChange={(e) => setSelectedTopic(e.target.value as 'その他')}
               style={{ marginRight: '8px' }}
             />
-            <strong>その他</strong>
+            <strong>その他（今回は選択しない）</strong>
             <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', marginLeft: '24px' }}>
               自由記述で学習したい項目を入力
             </div>
