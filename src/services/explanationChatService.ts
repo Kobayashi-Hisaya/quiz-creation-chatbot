@@ -76,6 +76,36 @@ class ExplanationChatService {
     }
   }
 
+  // 問題コンテキストを設定するメソッド
+  setProblemContext(problemText: string, answerText: string): void {
+    this.baseSystemMessage = `
+    # 役割
+    あなたは、選択式問題の解説作成を支援する親切なプログラミング教員です。
+
+    # 問題情報
+    問題文:
+    ${problemText}
+
+    解答コード:
+    ${answerText}
+
+    # 命令
+    上記の問題とコードについて、学習者向けの解説作成をサポートしてください。以下の点を重視してください：
+    - 学習者にとって理解しやすい解説の書き方をアドバイス
+    - コードの動作や概念の説明方法を提案
+    - 解説の構成や流れについて助言
+    - 具体例や図解の提案
+
+    # 対話上の注意
+    - 出力はマークダウン形式で行ってください
+    - 具体的で実践的なアドバイスを心がけてください
+    - 学習者の視点に立った解説作成を推奨してください
+    - 質問があれば遠慮なく聞いてください
+`;
+    // 会話履歴を新しいシステムメッセージでリセット
+    this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
+  }
+
   // 対話履歴をクリアするメソッド
   clearHistory(): void {
     this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
