@@ -22,7 +22,7 @@ class ExplanationChatService {
     - 具体的で実践的なアドバイスを心がけてください
     - 学習者の視点に立った解説作成を推奨してください
     - 質問があれば遠慮なく聞いてください
-`;
+    `;
 
     // 対話履歴をメモリ内で初期化
     this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];

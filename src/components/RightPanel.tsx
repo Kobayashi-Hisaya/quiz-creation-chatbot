@@ -176,7 +176,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           onClick={handleTransitionToQuiz}
           disabled={isTransitioning || !problemData.problem?.trim() || !spreadsheetId}
           style={{
-            padding: "12px 20px",
+            padding: "10px 10px",
             backgroundColor: isTransitioning || !problemData.problem?.trim() || !spreadsheetId 
               ? "#ccc" 
               : "#4CAF50",
@@ -186,7 +186,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             cursor: isTransitioning || !problemData.problem?.trim() || !spreadsheetId 
               ? "not-allowed" 
               : "pointer",
-            fontSize: "14px",
+            fontSize: "12px",
             fontWeight: "bold",
             boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
           }}
@@ -201,7 +201,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             }
           }}
         >
-          {isTransitioning ? "移行中..." : "選択式問題の作成に移る"}
+          {isTransitioning ? "移行中..." : "解説の作成に移る"}
         </button>
       </div>
     </div>

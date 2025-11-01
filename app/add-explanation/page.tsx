@@ -212,7 +212,7 @@ const AddExplanationPage: React.FC = () => {
                 overflow: 'auto',
               }}
             >
-              <h2 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: 'bold' }}>
+              <h2 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 'bold' }}>
                 解説文を作成
               </h2>
               <textarea
@@ -236,7 +236,7 @@ const AddExplanationPage: React.FC = () => {
                   onClick={() => router.push('/create-quiz')}
                   style={{
                     padding: '10px 20px',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     backgroundColor: '#f0f0f0',
                     color: '#333',
                     border: '1px solid #ccc',
@@ -244,14 +244,14 @@ const AddExplanationPage: React.FC = () => {
                     cursor: 'pointer',
                   }}
                 >
-                  ← create-quizに戻る
+                  ← 問題作成画面に戻る
                 </button>
                 <button
                   onClick={handleSaveProblem}
                   disabled={isSaving}
                   style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
+                    padding: '5px 10px',
+                    fontSize: '13px',
                     fontWeight: 'bold',
                     backgroundColor: isSaving ? '#ccc' : '#4CAF50',
                     color: 'white',
@@ -260,7 +260,7 @@ const AddExplanationPage: React.FC = () => {
                     cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSaving ? '保存中...' : '問題を保存する'}
+                  {isSaving ? '保存中...' : '問題を保存'}
                 </button>
               </div>
             </div>
