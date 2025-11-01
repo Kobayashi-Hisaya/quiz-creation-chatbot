@@ -1,36 +1,42 @@
 import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import type { DataProblemTemplateData } from './gasClientService';
 
 class ChatService {
   private baseSystemMessage: string;
   private currentLearningTopic: string;
   private conversationHistory: BaseMessage[];
+  private currentSpreadsheetData: DataProblemTemplateData | null = null;
 
   constructor() {
 
         this.baseSystemMessage = `
         # 役割
-        あなたは，親しみのあるプロのプログラミング教員です．
+        あなたは，親しみのあるプロのデータ分析・スプレッドシート教員です．
 
         # 命令
-        プログラミングに関連する問題を作ることを通して、**{LEARNING_TOPIC}**の考え方を用いて日常生活の問題解決の方法を考えられるようになりたいです。
-        あなたは私が提示したテーマについて，**{LEARNING_TOPIC}**によって解決できる問題を作成するための質問を私に投げかけてください．
-        例えば，「そのテーマではどのようなデータが数値として記録されるのですか？」「そのデータはどのように計算されるのですか？」などです．
-        私はプログラミング初心者なので，親切で分かりやすい説明を心がけて下さい．
+        データ整理・表操作に関連する問題を作ることを通して、データ分析の考え方を用いて日常生活の問題解決の方法を考えられるようになりたいです。
+        あなたは私が提示したテーマについて，スプレッドシート操作（Excel/Googleスプレッドシート）によって解決できる問題を作成するための質問を私に投げかけてください．
+        例えば，「そのテーマではどのようなデータが記録されるのですか？」「そのデータをどのように集計・分析したいですか？」「どのような条件で絞り込みたいですか？」などです．
+        私はデータ分析初心者なので，親切で分かりやすい説明を心がけて下さい．
 
         # 問題について
-        - 回答は JavaScript のソースコード
-        - 多くても 20 行ほどの量に抑える
+        - 回答はスプレッドシートでの操作手順（関数、ピボットテーブル、条件付き書式など）
+        - 実際の業務や日常生活で使える内容
         - 私が興味のある分野と関連している
+
+        # スプレッドシートデータについて
+        {SPREADSHEET_DATA}
 
         # 対話上の注意
         - 出力はマークダウン形式で行ってください。
         - あなたが 1 から問題や答えを示すのではなく、私自身が答えを導けるようにヒントや質問を投げかけてください。
-        - **{LEARNING_TOPIC}**がどのような条件の時に適用できるのかということを常に私に考えさせてください。
+        - スプレッドシートの機能（関数、ピボットテーブル、グラフ、条件付き書式など）をどのような条件の時に適用できるのかということを常に私に考えさせてください。
         - 対話を進める中であなたが必要だと思った場合は，私にどんどん質問して下さい．
         - 質問は 1 つの対話につき 1 つにして下さい．
+        - スプレッドシートに入力されたデータがある場合は、そのデータを参考にして問題作成を支援してください。
     `;
 
-    this.currentLearningTopic = "制御構造";
+    this.currentLearningTopic = "データ整理・表操作";
 
     // 対話履歴をメモリ内で初期化
     this.conversationHistory = [new SystemMessage(this.getCurrentSystemMessage())];
@@ -43,9 +49,77 @@ class ChatService {
     this.clearHistory();
   }
 
+  // スプレッドシートデータを設定するメソッド
+  setSpreadsheetData(data: DataProblemTemplateData | null): void {
+    this.currentSpreadsheetData = data;
+    // システムメッセージを更新（履歴は保持）
+    this.conversationHistory[0] = new SystemMessage(this.getCurrentSystemMessage());
+  }
+
   // 現在のシステムメッセージを生成
   private getCurrentSystemMessage(): string {
-    return this.baseSystemMessage.replace(/{LEARNING_TOPIC}/g, this.currentLearningTopic);
+    let spreadsheetInfo = '';
+    if (this.currentSpreadsheetData) {
+      const { problemText, sheets, lastModified } = this.currentSpreadsheetData;
+
+      if (!sheets || sheets.length === 0) {
+        spreadsheetInfo = 'スプレッドシートデータは未取得です。まずはスプレッドシートに問題文やデータを入力してください。';
+      } else {
+        // 全シートのデータをフォーマット
+        const sheetsDisplay = sheets.map((sheet, sheetIndex) => {
+          const { sheetName, tableData, lastRow, lastColumn } = sheet;
+
+          // 空行を除外した非空行データ
+          const nonEmptyRows = tableData?.filter(row =>
+            row.some(cell => cell !== null && cell !== undefined && cell.toString().trim() !== '')
+          ) || [];
+
+          // データ表示の決定（大量データの場合はサンプリング）
+          let dataDisplay = '';
+          if (nonEmptyRows.length === 0) {
+            dataDisplay = 'データなし';
+          } else if (nonEmptyRows.length <= 100) {
+            // 100行以下: 全データを表示
+            dataDisplay = nonEmptyRows.map((row, i) =>
+              `行${i + 1}: ${row.join(', ')}`
+            ).join('\n');
+          } else {
+            // 100行超: 最初の50行 + 最後の10行を表示
+            const firstRows = nonEmptyRows.slice(0, 50).map((row, i) =>
+              `行${i + 1}: ${row.join(', ')}`
+            ).join('\n');
+            const lastRows = nonEmptyRows.slice(-10).map((row, i) =>
+              `行${nonEmptyRows.length - 10 + i + 1}: ${row.join(', ')}`
+            ).join('\n');
+            dataDisplay = `${firstRows}\n...(${nonEmptyRows.length - 60}行省略)...\n${lastRows}`;
+          }
+
+          return `
+=== シート${sheetIndex + 1}: "${sheetName}" ===
+使用範囲: ${lastRow}行 × ${lastColumn}列
+非空行数: ${nonEmptyRows.length}行
+
+データ:
+${dataDisplay}
+`;
+        }).join('\n');
+
+        spreadsheetInfo = `
+現在のスプレッドシートの内容:
+- 問題文: ${problemText || '未入力'}
+- シート数: ${sheets.length}
+- 最終更新: ${lastModified || '不明'}
+
+${sheetsDisplay}
+      `;
+      }
+    } else {
+      spreadsheetInfo = 'スプレッドシートデータは未取得です。まずはスプレッドシートに問題文やデータを入力してください。';
+    }
+
+    return this.baseSystemMessage
+      .replace(/{LEARNING_TOPIC}/g, this.currentLearningTopic)
+      .replace(/{SPREADSHEET_DATA}/g, spreadsheetInfo);
   }
 
   async sendMessage(message: string): Promise<string> {

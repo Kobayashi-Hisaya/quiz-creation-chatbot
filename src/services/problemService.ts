@@ -74,11 +74,26 @@ export const saveProblem = async (
     };
     console.log('[problemService] 挿入データ:', insertData);
 
-    const { data: problem, error: problemError } = await supabase
-      .from('problems')
-      .insert([insertData])
-      .select()
-      .single();
+    let problem, problemError;
+    try {
+      console.log('[problemService] Supabase insert 開始');
+      const insertResult = await Promise.race([
+        supabase
+          .from('problems')
+          .insert([insertData])
+          .select()
+          .single(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 15000))
+      ]) as { data: Problem | null, error: Error | null };
+      
+      problem = insertResult.data;
+      problemError = insertResult.error;
+      console.log('[problemService] Supabase insert 完了');
+    } catch (error) {
+      console.error('[problemService] Supabase insert エラー:', error);
+      problemError = error;
+      problem = null;
+    }
 
     console.log('[problemService] 問題保存結果:', { problem, problemError });
 
@@ -86,6 +101,7 @@ export const saveProblem = async (
       console.error('[problemService] Problem save error:', problemError);
       return { success: false, error: `問題の保存に失敗しました: ${problemError instanceof Error ? problemError.message : JSON.stringify(problemError)}` };
     }
+
 
     // チャット履歴を保存
     console.log('[problemService] チャット履歴保存開始');

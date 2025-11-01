@@ -1,14 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Message } from '../types/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { chatService } from '../services/chatService';
+import { useAuth } from '@/contexts/AuthContext';
+import type { DataProblemTemplateData } from '../services/gasClientService';
 
-export const ChatContainer: React.FC = () => {
+interface ChatContainerProps {
+  spreadsheetData?: DataProblemTemplateData | null;
+  fetchLatestSpreadsheetData?: () => Promise<DataProblemTemplateData | null>;
+}
+
+export const ChatContainer: React.FC<ChatContainerProps> = ({ 
+  spreadsheetData, 
+  fetchLatestSpreadsheetData 
+}) => {
+  const { user } = useAuth();
+
+  // per-user storage key
+  const storageKey = user ? `chatMessages:${user.id}` : 'chatMessages:anon';
+
   // localStorageからメッセージ履歴を読み込む
   const loadMessages = (): Message[] => {
     try {
-      const stored = localStorage.getItem('chatMessages');
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsedMessages = JSON.parse(stored) as Message[];
         return parsedMessages.map((msg) => ({
@@ -26,18 +41,45 @@ export const ChatContainer: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // メッセージをlocalStorageに保存
-  const saveMessages = (msgs: Message[]) => {
+  const saveMessages = useCallback((msgs: Message[]) => {
     try {
-      localStorage.setItem('chatMessages', JSON.stringify(msgs));
+      localStorage.setItem(storageKey, JSON.stringify(msgs));
     } catch (error) {
       console.error('Failed to save messages to localStorage:', error);
     }
-  };
+  }, [storageKey]);
 
-  // messagesが変更されたらlocalStorageに保存
+  // messagesが変更されたらlocalStorageに保存（デバウンス）
   useEffect(() => {
-    saveMessages(messages);
-  }, [messages]);
+    const handle = setTimeout(() => saveMessages(messages), 300);
+    return () => clearTimeout(handle);
+  }, [messages, saveMessages]);
+
+  // storage イベントで他タブからの更新を反映
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== storageKey) return;
+      try {
+        if (e.newValue) {
+          const parsed = JSON.parse(e.newValue) as Message[];
+          setMessages(parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
+        } else {
+          setMessages([]);
+        }
+      } catch (err) {
+        console.warn('Failed to parse chat storage event', err);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [storageKey]);
+
+  // スプレッドシートデータが変更されたらChatServiceに反映
+  useEffect(() => {
+    if (spreadsheetData) {
+      chatService.setSpreadsheetData(spreadsheetData);
+    }
+  }, [spreadsheetData]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -51,6 +93,14 @@ export const ChatContainer: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // 送信前に最新のスプレッドシートデータを取得
+      if (fetchLatestSpreadsheetData) {
+        const latestData = await fetchLatestSpreadsheetData();
+        if (latestData) {
+          chatService.setSpreadsheetData(latestData);
+        }
+      }
+
       const botResponse = await chatService.sendMessage(content);
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -61,15 +111,21 @@ export const ChatContainer: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error('Error sending message:', error);
+      
+      let errorContent = 'Sorry, I encountered an error. Please try again.';
+      if (error instanceof Error && (error.message.includes('spreadsheet') || error.message.includes('fetch'))) {
+        errorContent = 'スプレッドシートのデータ取得中にエラーが発生しました。再度お試しください。';
+      }
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorContent,
         sender: 'bot',
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, errorMessage]);
-      console.error('Failed to send message:', error);
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +134,7 @@ export const ChatContainer: React.FC = () => {
   const handleClearHistory = () => {
     chatService.clearHistory();
     setMessages([]);
-    localStorage.removeItem('chatMessages');
+    try { localStorage.removeItem(storageKey); } catch {}
   };
 
   return (
@@ -100,19 +156,6 @@ export const ChatContainer: React.FC = () => {
         alignItems: 'center'
       }}>
         <span style={{ fontWeight: 'bold' }}>作問用チャットボット</span>
-        <button
-          onClick={handleClearHistory}
-          style={{
-            padding: '6px 12px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '12px'
-          }}
-        >
-          🗑️ 履歴クリア
-        </button>
       </div>
       
       <MessageList messages={messages} isLoading={isLoading} />

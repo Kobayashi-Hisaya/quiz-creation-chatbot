@@ -22,7 +22,7 @@ import BackToDashboardButton from '@/components/BackToDashboardButton';
 
 const QuizCreationPage: React.FC = () => {
   const router = useRouter();
-  const { problemData } = useProblem();
+  const { problemData, clearTopicSelection } = useProblem();
   const { user, profile, session, loading } = useAuth();
   
   // 問題データの確認
@@ -328,7 +328,7 @@ const QuizCreationPage: React.FC = () => {
         expected_answer_time: expectedAnswerTime,
       };
 
-      console.log('=== 保存データ準備完了（タイトル+作問課題付き） ===');
+      console.log('=== 保存データ準備完了 ===');
       console.log('problemToSave:', problemToSave);
 
       // チャット履歴を準備
@@ -355,7 +355,7 @@ const QuizCreationPage: React.FC = () => {
         });
       }
 
-      console.log('=== SessionStorage に問題データを保存開始 ===');
+      console.log('=== Supabaseに保存開始 ===');
       console.log('chatHistories:', chatHistories);
 
       // SessionStorage に問題データを保存
@@ -366,8 +366,11 @@ const QuizCreationPage: React.FC = () => {
 
       sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
       console.log('=== SessionStorage に保存完了 ===');
+        setHasUnsavedChanges(false);
 
-      setHasUnsavedChanges(false);
+      // 学習項目選択状態をクリア（次回の問題作成時に再度選択させる）
+      clearTopicSelection();
+      console.log('=== 学習項目選択状態をクリア ===');
 
       // agent-assessment ページに遷移
       console.log('=== agent-assessment ページへ遷移 ===');
@@ -378,10 +381,10 @@ const QuizCreationPage: React.FC = () => {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : 'No stack trace'
       });
-      alert('問題の準備中にエラーが発生しました');
+      alert('保存中にエラーが発生しました');
     } finally {
       setIsSaving(false);
-      console.log('=== 処理終了 ===');
+      console.log('=== 保存処理終了 ===');
     }
   };
 
@@ -832,7 +835,7 @@ const QuizCreationPage: React.FC = () => {
         onConfirm={handleModeChangeConfirm}
         onCancel={handleModeChangeCancel}
       />
-
+      
       {/* Title input popup */}
       <TitleInputPopup
         isOpen={showTitlePopup}

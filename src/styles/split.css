@@ -1,0 +1,22 @@
+.quiz-split {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+.quiz-split > .gutter {
+  cursor: col-resize;
+  width: 8px;
+  background: transparent;
+}
+
+.quiz-split > div {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Ensure children don't stack internally due to accidental column flex */
+.quiz-split > div > * {
+  display: block;
+}
