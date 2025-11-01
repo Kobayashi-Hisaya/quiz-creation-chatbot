@@ -83,7 +83,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     setError(errorMessage);
   };
 
-  const handleTransitionToQuiz = () => {
+  const handleTransitionToQuiz = async () => {
     // データが入力されているかチェック
     if (!problemData.problem?.trim()) {
       alert('問題文を入力してからクイズ作成に進んでください');
@@ -95,12 +95,27 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       return;
     }
 
-    // スプレッドシートIDをセッションストレージに保存
-    sessionStorage.setItem('currentSpreadsheetId', spreadsheetId);
-
     setIsTransitioning(true);
-    // Next.jsのルーターで遷移
-    router.push("/create-mcq");
+
+    try {
+      // GASから最新のproblemTextとanswerTextを取得
+      const { gasClientService } = await import('@/services/gasClientService');
+      const latestData = await gasClientService.getSheetData(spreadsheetId);
+
+      if (latestData) {
+        // sessionStorageにデータを保存
+        sessionStorage.setItem('currentSpreadsheetId', spreadsheetId);
+        sessionStorage.setItem('problemText', latestData.problemText || '');
+        sessionStorage.setItem('answerText', latestData.answerText || '');
+      }
+
+      // Next.jsのルーターで遷移
+      router.push("/add-explanation");
+    } catch (error) {
+      console.error('データ取得エラー:', error);
+      alert('データの取得に失敗しました。もう一度お試しください。');
+      setIsTransitioning(false);
+    }
   };
 
   return (
