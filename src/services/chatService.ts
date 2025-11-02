@@ -148,8 +148,8 @@ ${sheetsDisplay}
         },
         body: JSON.stringify({
           messages,
-          model: 'gpt-4o',
-          temperature: 0.7,
+          model: 'gpt-5',
+          // temperature: 0.7,
         }),
       });
 

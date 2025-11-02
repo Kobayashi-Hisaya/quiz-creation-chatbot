@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-4o", temperature = 0.7 } = body;
+    const { messages, model = "gpt-4o" /*temperature = 0.7*/ } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -25,11 +25,14 @@ export async function POST(request: NextRequest) {
     const chatModel = new ChatOpenAI({
       apiKey: OPENAI_API_KEY,
       model,
-      temperature,
+      // temperature,
     });
 
     const response = await chatModel.invoke(messages);
 
+    console.log('===============infomation of OpenAI API====================')
+    console.log(chatModel)
+    console.log('===============that\'s all===================')
     return NextResponse.json({
       content: response.content,
       role: 'assistant',
