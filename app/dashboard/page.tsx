@@ -73,7 +73,7 @@ const DashboardPageContent: React.FC = () => {
   };
 
   const handleCreateNew = () => {
-    router.push('/create-quiz');
+    router.push('/review-learning-topic');
   };
 
   const handleProblemClick = (problemId: string) => {
