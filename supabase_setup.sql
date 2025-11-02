@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS problems (
   title TEXT,
   expected_accuracy INTEGER,
   expected_answer_time INTEGER,
+  assessment_spreadsheet_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

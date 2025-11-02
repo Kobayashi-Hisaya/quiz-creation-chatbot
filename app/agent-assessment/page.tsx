@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProblem } from '@/services/problemService';
 import type { SaveProblemData, ChatHistoryInput } from '@/services/problemService';
+import { AssessmentSpreadsheetPanel } from '@/components/AssessmentSpreadsheetPanel';
 
 interface ProblemDataToSave extends SaveProblemData {
   title: string;
@@ -124,14 +125,50 @@ export default function AgentAssessmentPage() {
   const runDiagnosis = async () => {
     setIsDiagnosing(true);
     try {
-      // プロンプト：「こんにちは、自己紹介して」
+      // Assessment spreadsheet データを取得（もし存在する場合）
+      let spreadsheetData = null;
+      if (sessionData?.problemData?.assessment_spreadsheet_id) {
+        try {
+          const sheetResponse = await fetch(
+            `/api/gas/get-assessment-data?spreadsheetId=${sessionData.problemData.assessment_spreadsheet_id}`
+          );
+          if (sheetResponse.ok) {
+            spreadsheetData = await sheetResponse.json();
+            console.log('[AgentAssessment] スプレッドシートデータ取得:', spreadsheetData);
+          }
+        } catch (error) {
+          console.warn('[AgentAssessment] スプレッドシートデータ取得エラー:', error);
+        }
+      }
+
       console.log('[AgentAssessment] 診断開始: /api/chat にリクエスト送信');
       
+      // プロンプトを構築
+      let systemPrompt = 'あなたは教育用の問題作成アシスタントです。以下の問題を分析し、改善提案をしてください。';
+      
+      if (spreadsheetData) {
+        systemPrompt += '\n\n【問題データ（スプレッドシート）】\n';
+        if (spreadsheetData.sheets && spreadsheetData.sheets.length > 0) {
+          const firstSheet = spreadsheetData.sheets[0];
+          if (firstSheet.tableData) {
+            systemPrompt += '以下は問題の詳細情報です：\n';
+            firstSheet.tableData.slice(0, 15).forEach((row: any[], index: number) => {
+              if (Array.isArray(row)) {
+                const rowText = row.join(' | ');
+                if (rowText.trim()) {
+                  systemPrompt += `行${index + 1}: ${rowText}\n`;
+                }
+              }
+            });
+          }
+        }
+      }
+
       // LangChainのメッセージ形式に変換
       const messages = [
         {
           role: 'user',
-          content: 'こんにちは、自己紹介してください。'
+          content: `以下の問題について、医学的な正確性、わかりやすさ、難易度のバランスなどの観点から分析し、改善提案をしてください。\n\n【問題テキスト】\n${sessionData?.problemData?.problem_text || 'なし'}\n\n【選択肢】\n${sessionData?.problemData?.choices?.map((c: any, i: number) => `${String.fromCharCode(65 + i)}. ${c.text}${c.isCorrect ? ' (正解)' : ''}`).join('\n') || 'なし'}\n\n【解説】\n${sessionData?.problemData?.explanation || 'なし'}`
         }
       ];
 
@@ -142,6 +179,7 @@ export default function AgentAssessmentPage() {
         },
         body: JSON.stringify({
           messages: messages,
+          systemPrompt: systemPrompt,
           model: 'gpt-4o',
           temperature: 0.7
         }),
@@ -571,7 +609,7 @@ export default function AgentAssessmentPage() {
           </div>
         </div>
 
-        {/* 右側：問題修正パネル */}
+        {/* 右側：診断用スプレッドシートパネル */}
         <div style={{
           flex: '0 0 50%',
           backgroundColor: 'white',
@@ -593,212 +631,85 @@ export default function AgentAssessmentPage() {
               paddingBottom: '12px',
               borderBottom: '2px solid #2196f3'
             }}>
-              ✏️ 問題修正
+              📊 診断用スプレッドシート
             </h2>
 
-            {/* 修正画面の骨組み */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
-            }}>
-              {/* 問題文編集 */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#333'
+            {sessionData?.problemData?.assessment_spreadsheet_id ? (
+              <AssessmentSpreadsheetPanel
+                userEmail={user?.email || ''}
+                problemData={sessionData.problemData}
+                onDataChange={(data) => {
+                  console.log('Spreadsheet data changed:', data);
+                }}
+                onError={(error) => {
+                  console.error('Spreadsheet error:', error);
+                }}
+              />
+            ) : (
+              <div style={{
+                backgroundColor: '#fff3cd',
+                border: '1px solid #ffc107',
+                padding: '16px',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: '14px',
+                  color: '#856404',
+                  fontWeight: '500'
                 }}>
-                  📝 問題文
-                </label>
-                <textarea
-                  value={editedProblemText}
-                  onChange={(e) => setEditedProblemText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: '80px',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'monospace',
-                    backgroundColor: '#fff',
-                    cursor: 'text',
-                    color: '#333'
-                  }}
-                />
+                  📋 スプレッドシートが作成されていません
+                </p>
               </div>
-
-              {/* コード編集 */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}>
-                  💻 コード
-                </label>
-                <textarea
-                  value={editedCode}
-                  onChange={(e) => setEditedCode(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: '100px',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    backgroundColor: '#fff',
-                    cursor: 'text',
-                    color: '#333'
-                  }}
-                />
-              </div>
-
-              {/* 解説編集 */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}>
-                  📖 解説
-                </label>
-                <textarea
-                  value={editedExplanation}
-                  onChange={(e) => setEditedExplanation(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: '80px',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'monospace',
-                    backgroundColor: '#fff',
-                    cursor: 'text',
-                    color: '#333'
-                  }}
-                />
-              </div>
-
-              {/* 選択肢 */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}>
-                  🎯 選択肢 ({editedChoices?.length || 0}個)
-                </label>
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}>
-                  {editedChoices?.map((choice, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '10px',
-                        backgroundColor: choice.isCorrect ? '#e8f5e9' : '#f5f5f5',
-                        border: `1px solid ${choice.isCorrect ? '#81c784' : '#ddd'}`,
-                        borderRadius: '6px',
-                        fontSize: '13px'
-                      }}
-                    >
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '8px'
-                      }}>
-                        <span style={{
-                          fontWeight: '600',
-                          color: choice.isCorrect ? '#2e7d32' : '#666',
-                          minWidth: '30px'
-                        }}>
-                          {choice.isCorrect ? '✅' : '○'} {String.fromCharCode(65 + idx)}.
-                        </span>
-                        <input
-                          type="text"
-                          value={choice.text}
-                          onChange={(e) => {
-                            const updatedChoices = [...editedChoices];
-                            updatedChoices[idx].text = e.target.value;
-                            setEditedChoices(updatedChoices);
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '6px 8px',
-                            border: `1px solid ${choice.isCorrect ? '#81c784' : '#ddd'}`,
-                            borderRadius: '4px',
-                            fontSize: '13px',
-                            backgroundColor: 'transparent',
-                            color: choice.isCorrect ? '#2e7d32' : '#333'
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* 下部アクションボタン */}
-          <div style={{
-            padding: '16px 20px',
-            borderTop: '2px solid #00d4ff',
-            display: 'flex',
-            gap: '10px',
-            justifyContent: 'flex-end',
-            flexShrink: 0,
-            backgroundColor: '#f5f5f5'
-          }}>
-            <button
-              onClick={handleRegisterProblem}
-              disabled={isSaving}
-              style={getButtonStyle('success', isSaving) as any}
-              onMouseOver={(e) => {
-                if (!isSaving) {
-                  e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 8px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!isSaving) {
-                  e.currentTarget.style.boxShadow = `0 0 10px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.15)`;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }
-              }}
-            >
-              {isSaving ? '⏳ 登録中...' : '✅ 登録'}
-            </button>
-
-            <button
-              onClick={handleCancel}
-              style={getButtonStyle('danger') as any}
-              onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.4), inset 0 0 8px rgba(255,255,255,0.15)';
+        {/* 下部アクションボタン */}
+        <div style={{
+          padding: '16px 20px',
+          borderTop: '2px solid #00d4ff',
+          display: 'flex',
+          gap: '10px',
+          justifyContent: 'flex-end',
+          flexShrink: 0,
+          backgroundColor: '#f5f5f5'
+        }}>
+          <button
+            onClick={handleRegisterProblem}
+            disabled={isSaving}
+            style={getButtonStyle('success', isSaving) as any}
+            onMouseOver={(e) => {
+              if (!isSaving) {
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 8px rgba(0,0,0,0.08)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 10px rgba(255, 51, 102, 0.2), 0 0 20px rgba(255, 51, 102, 0.15)`;
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isSaving) {
+                e.currentTarget.style.boxShadow = `0 0 10px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.15)`;
                 e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              ❌ キャンセル
-            </button>
-          </div>
+              }
+            }}
+          >
+            {isSaving ? '⏳ 登録中...' : '✅ 登録'}
+          </button>
+
+          <button
+            onClick={handleCancel}
+            style={getButtonStyle('danger') as any}
+            onMouseOver={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.4), inset 0 0 8px rgba(255,255,255,0.15)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.boxShadow = `0 0 10px rgba(255, 51, 102, 0.2), 0 0 20px rgba(255, 51, 102, 0.15)`;
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            ❌ キャンセル
+          </button>
         </div>
       </div>
     </div>

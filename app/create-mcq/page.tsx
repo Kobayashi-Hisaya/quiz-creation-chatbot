@@ -358,9 +358,54 @@ const QuizCreationPage: React.FC = () => {
       console.log('=== Supabaseに保存開始 ===');
       console.log('chatHistories:', chatHistories);
 
+      // Assessment spreadsheet を作成
+      console.log('=== Assessment Spreadsheet 作成開始 ===');
+      let assessmentSpreadsheetId: string | null = null;
+      
+      if (user?.email) {
+        try {
+          const assessmentResponse = await fetch('/api/gas/create-assessment-sheet', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userEmail: user.email,
+              sessionId: `assessment-${Date.now()}`,
+              problemData: {
+                title: title,
+                problem_text: problemToSave.problem_text,
+                explanation: problemToSave.explanation,
+                code: problemToSave.code,
+                language: problemToSave.language,
+                learning_topic: problemToSave.learning_topic,
+                expected_accuracy: problemToSave.expected_accuracy,
+                expected_answer_time: problemToSave.expected_answer_time,
+                choices: problemToSave.choices
+              }
+            })
+          });
+
+          if (assessmentResponse.ok) {
+            const assessmentResult = await assessmentResponse.json();
+            assessmentSpreadsheetId = assessmentResult.spreadsheet.spreadsheetId;
+            console.log('=== Assessment Spreadsheet 作成完了 ===');
+            console.log('assessmentSpreadsheetId:', assessmentSpreadsheetId);
+          } else {
+            console.error('Assessment spreadsheet creation failed:', assessmentResponse.statusText);
+          }
+        } catch (error) {
+          console.error('Error creating assessment spreadsheet:', error);
+          // エラーが発生してもプロセスを続行
+        }
+      }
+
       // SessionStorage に問題データを保存
       const sessionData = {
-        problemData: problemToSave,
+        problemData: {
+          ...problemToSave,
+          assessment_spreadsheet_id: assessmentSpreadsheetId
+        },
         chatHistories: chatHistories,
       };
 

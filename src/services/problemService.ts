@@ -21,6 +21,8 @@ export interface SaveProblemData {
   problem_category?: string;
   session_id?: string | null;
   table_data?: Record<string, unknown> | null;
+  // 診断用スプレッドシート
+  assessment_spreadsheet_id?: string | null;
 }
 
 export interface ChatHistoryInput {

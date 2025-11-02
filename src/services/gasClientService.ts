@@ -187,6 +187,54 @@ class GASClientService {
       return false;
     }
   }
+
+  /**
+   * 問題評価用スプレッドシートを作成
+   */
+  async createAssessmentSheet(userEmail: string, sessionId: string, problemData: any): Promise<CreateSheetResponse | null> {
+    try {
+      const response = await fetch('/api/gas/create-assessment-sheet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userEmail, 
+          sessionId,
+          problemData
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create assessment sheet');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating assessment sheet:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 問題評価用スプレッドシートのデータを取得
+   */
+  async getAssessmentSheetData(spreadsheetId: string): Promise<any | null> {
+    try {
+      const response = await fetch(`/api/gas/get-assessment-data?spreadsheetId=${encodeURIComponent(spreadsheetId)}`);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch assessment data');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching assessment data:', error);
+      return null;
+    }
+  }
 }
 
 // シングルトンインスタンス
