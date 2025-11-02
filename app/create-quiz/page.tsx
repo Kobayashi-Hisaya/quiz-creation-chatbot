@@ -39,16 +39,43 @@ const HomePage: React.FC = () => {
   const getCurrentDataRef = useRef<(() => Promise<DataProblemTemplateData | null>) | null>(null);
   const [isDataRestored, setIsDataRestored] = useState(false);
   const [restorationAttempted, setRestorationAttempted] = useState(false);
-  
+
   // Split sizes (percent).
-  const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes());
+  const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
   // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
   useEffect(() => {
-    if (!hasSelectedTopic || !problemData.learningTopic) {
+    if (!hasTopicBeenSelected) {
       setShowTopicSelector(true);
     }
-  }, [hasSelectedTopic, problemData.learningTopic]);
+  }, [hasTopicBeenSelected]);
+
+  // ページロード時にスプレッドシートデータを復元（1回のみ実行）
+  useEffect(() => {
+    if (
+      !restorationAttempted &&
+      !isDataRestored &&
+      getCurrentDataRef.current &&
+      spreadsheetState?.spreadsheetId &&
+      !currentSpreadsheetData
+    ) {
+      setRestorationAttempted(true); // 先に試行フラグを立てる
+      const restoreData = async () => {
+        try {
+          const data = await getCurrentDataRef.current!();
+          if (data) {
+            setCurrentSpreadsheetData(data);
+            setIsDataRestored(true);
+          }
+        } catch (error) {
+          console.error('Failed to restore spreadsheet data:', error);
+          // エラー時は試行済みだが復元未完了状態にする
+        }
+      };
+      restoreData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restorationAttempted, isDataRestored, spreadsheetState?.spreadsheetId, currentSpreadsheetData]);
 
   // ページロード時にスプレッドシートデータを復元（1回のみ実行）
   useEffect(() => {
@@ -80,7 +107,6 @@ const HomePage: React.FC = () => {
   const handleTopicSelect = (topic: LearningTopic) => {
     setLearningTopic(topic);
     chatService.setLearningTopic(topic);
-    setHasSelectedTopic(true);
     setShowTopicSelector(false);
     // 作問課題ポップアップを表示
     setShowAssignmentPopup(true);
@@ -125,28 +151,8 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  // restore persisted split sizes on client mount
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem(SPLIT_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as number[];
-          if (Array.isArray(parsed) && parsed.length === 2) setSplitSizes(parsed);
-          else setSplitSizes(DEFAULT_SPLIT_SIZES);
-        } else {
-          setSplitSizes(DEFAULT_SPLIT_SIZES);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to restore split sizes', e);
-      setSplitSizes(DEFAULT_SPLIT_SIZES);
-    }
-  }, []);
-
   // attach double-click on gutters to reset to default sizes
   useEffect(() => {
-    if (!splitSizes) return;
     const onDbl = () => {
       setSplitSizes(DEFAULT_SPLIT_SIZES);
       try { localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify(DEFAULT_SPLIT_SIZES)); } catch {}
@@ -155,9 +161,9 @@ const HomePage: React.FC = () => {
     const gutters = Array.from(document.querySelectorAll('[class*="gutter"]')) as HTMLElement[];
     gutters.forEach(g => g.addEventListener('dblclick', onDbl));
     return () => gutters.forEach(g => g.removeEventListener('dblclick', onDbl));
-  }, [splitSizes]);
+  }, []);
 
-return (
+  return (
     <>
       <Split
         className="quiz-split"

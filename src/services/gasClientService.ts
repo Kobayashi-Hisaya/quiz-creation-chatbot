@@ -8,6 +8,9 @@ export interface SheetData {
 
 export interface DataProblemTemplateData {
   problemText?: string;
+  answerText?: string;
+  // convenience: code mapped from spreadsheet's answerText
+  code?: string;
   sheets?: SheetData[];
   lastModified?: string;
 }
@@ -27,6 +30,7 @@ export interface CreateSheetResponse {
 
 export interface GetDataResponse {
   problemText: string;
+  answerText?: string;
   sheets: SheetData[];
   lastModified: string;
 }
@@ -65,7 +69,8 @@ class GASClientService {
         try {
           const error = JSON.parse(responseText);
           throw new Error(error.error || 'Failed to create spreadsheet');
-        } catch (parseError) {
+        } catch (e) {
+          console.error('Failed to parse error response from GAS create:', e);
           throw new Error(`Invalid response from Google Apps Script: ${responseText.substring(0, 200)}`);
         }
       }
@@ -73,7 +78,8 @@ class GASClientService {
       // JSONパース
       try {
         return JSON.parse(responseText);
-      } catch (parseError) {
+      } catch (e) {
+        console.error('Failed to parse JSON from GAS create response:', e);
         throw new Error(`Invalid JSON response from Google Apps Script: ${responseText.substring(0, 200)}`);
       }
 
@@ -109,7 +115,8 @@ class GASClientService {
         try {
           const error = JSON.parse(responseText);
           throw new Error(error.error || 'Failed to get spreadsheet data');
-        } catch (parseError) {
+        } catch (e) {
+          console.error('Failed to parse error response from GAS get-data:', e);
           throw new Error(`Invalid response from Google Apps Script: ${responseText.substring(0, 200)}`);
         }
       }
@@ -118,11 +125,15 @@ class GASClientService {
       let result: GetDataResponse;
       try {
         result = JSON.parse(responseText);
-      } catch (parseError) {
+      } catch (e) {
+        console.error('Failed to parse JSON from GAS get-data response:', e);
         throw new Error(`Invalid JSON response from Google Apps Script: ${responseText.substring(0, 200)}`);
       }
       return {
         problemText: result.problemText,
+        answerText: result.answerText || undefined,
+        // convenience: map answerText to code so callers can use either
+        code: result.answerText || undefined,
         sheets: result.sheets,
         lastModified: result.lastModified
       };
