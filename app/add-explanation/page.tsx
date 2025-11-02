@@ -6,6 +6,8 @@ import '@/styles/split.css';
 import { DataSpreadsheetPanel } from '@/components/DataSpreadsheetPanel';
 import { ExplanationChatContainer } from '@/components/ExplanationChatContainer';
 import { explanationChatService } from '@/services/explanationChatService';
+import { reviewChatService } from '@/services/reviewChatService';
+import { chatService } from '@/services/chatService';
 import { useProblem } from '@/contexts/ProblemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProblem } from '@/services/problemService';
@@ -32,11 +34,12 @@ const getInitialSplitSizes = (key: string, defaultSizes: number[]): number[] => 
 const AddExplanationPage: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const { problemData, spreadsheetState } = useProblem();
+  const { problemData, spreadsheetState, clearTopicSelection } = useProblem();
 
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [problemText, setProblemText] = useState<string>('');
   const [answerText, setAnswerText] = useState<string>('');
+  const [learningTopic, setLearningTopic] = useState<string>('');
   const [explanation, setExplanation] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -58,6 +61,7 @@ const AddExplanationPage: React.FC = () => {
         const storedSpreadsheetId = sessionStorage.getItem('currentSpreadsheetId');
         const storedProblemText = sessionStorage.getItem('problemText');
         const storedAnswerText = sessionStorage.getItem('answerText');
+        const storedLearningTopic = sessionStorage.getItem('learningTopic');
 
         if (!storedSpreadsheetId || !storedProblemText) {
           alert('必要なデータが見つかりません。create-quizページからやり直してください。');
@@ -68,6 +72,7 @@ const AddExplanationPage: React.FC = () => {
         setSpreadsheetId(storedSpreadsheetId);
         setProblemText(storedProblemText);
         setAnswerText(storedAnswerText || '');
+        setLearningTopic(storedLearningTopic || '');
 
         // explanationChatServiceにコンテキストを設定
         explanationChatService.setProblemContext(storedProblemText, storedAnswerText || '');
@@ -114,23 +119,27 @@ const AddExplanationPage: React.FC = () => {
       const saveData = {
         problem_text: problemText,
         code: problemData.code || answerText,
-        language: problemData.language || 'data_analysis',
-        learning_topic: problemData.learningTopic || 'data_analysis',
+        language: problemData.language || '',
+        learning_topic: problemData.learningTopic || '',
         code_with_blanks: null,
         choices: null,
         explanation: explanation.trim() || null,
         spreadsheet_url: spreadsheetState?.embedUrl || null,
         spreadsheet_id: spreadsheetId,
-        problem_category: 'data_analysis',
+        problem_category: '',
         session_id: null,
         table_data: null,
       };
 
-      // チャット履歴を取得
+      // チャット履歴を取得（review chat履歴も含める）
       const chatHistories = [
         {
           chat_type: 'explanation' as const,
           messages: explanationChatService.getConversationHistory(),
+        },
+        {
+          chat_type: 'review' as const,
+          messages: reviewChatService.getConversationHistory(),
         },
       ];
 
@@ -142,10 +151,41 @@ const AddExplanationPage: React.FC = () => {
 
       if (result.success) {
         alert('問題を保存しました！');
+
+        // localStorageから各種チャット履歴をクリア
+        if (user?.id) {
+          // review chat履歴のクリア
+          if (learningTopic) {
+            const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
+            localStorage.removeItem(reviewStorageKey);
+            console.log(`localStorage removed: ${reviewStorageKey}`);
+          }
+
+          // explanation chat履歴のクリア
+          const explanationStorageKey = `explanation-chat-messages:${user.id}`;
+          localStorage.removeItem(explanationStorageKey);
+          console.log(`localStorage removed: ${explanationStorageKey}`);
+
+          // chat (問題作成チャット) 履歴のクリア
+          const chatStorageKey = `chatMessages:${user.id}`;
+          localStorage.removeItem(chatStorageKey);
+          console.log(`localStorage removed: ${chatStorageKey}`);
+        }
+
         // sessionStorageをクリア
         sessionStorage.removeItem('currentSpreadsheetId');
         sessionStorage.removeItem('problemText');
         sessionStorage.removeItem('answerText');
+        sessionStorage.removeItem('learningTopic');
+
+        // チャットサービスの履歴もクリア
+        chatService.clearHistory();
+        reviewChatService.clearHistory();
+        explanationChatService.clearHistory();
+
+        // 学習項目選択状態をクリア（次回作成時に再度TopicSelectorを表示）
+        clearTopicSelection();
+
         // dashboardに遷移
         router.push('/dashboard');
       } else {

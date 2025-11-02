@@ -45,19 +45,20 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   // データ整理問題スプレッドシートからのデータ変更を処理
   const handleSheetsDataChange = useCallback((data: DataProblemTemplateData) => {
     // スプレッドシートのデータをProblemContextに反映
+    // 既存のlanguageとlearningTopicは保持する（review-learning-topicで設定された値を消さないため）
     setProblemData({
       problem: data.problemText || '',
       // GAS の answerText を frontend の problemData.code にマッピングする (Aプラン)
       code: data.code || data.answerText || '',
-      language: 'data_analysis', // 新しいカテゴリ
-      learningTopic: 'data_analysis', // データ整理固定
+      language: problemData.language || '', // 既存の値を保持
+      learningTopic: problemData.learningTopic || '', // 既存の値を保持（重要！）
     });
-    
+
     // 親コンポーネント（HomePage）にもデータ変更を通知
     if (onSpreadsheetDataChange) {
       onSpreadsheetDataChange(data);
     }
-  }, [setProblemData, onSpreadsheetDataChange]);
+  }, [setProblemData, onSpreadsheetDataChange, problemData.language, problemData.learningTopic]);
 
   // スプレッドシート作成時の処理
   const handleSpreadsheetCreated = (sheetId: string, embedUrl: string) => {
@@ -107,6 +108,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         sessionStorage.setItem('currentSpreadsheetId', spreadsheetId);
         sessionStorage.setItem('problemText', latestData.problemText || '');
         sessionStorage.setItem('answerText', latestData.answerText || '');
+        sessionStorage.setItem('learningTopic', problemData.learningTopic || '');
       }
 
       // Next.jsのルーターで遷移

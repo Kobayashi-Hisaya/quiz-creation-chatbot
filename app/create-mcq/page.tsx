@@ -307,6 +307,29 @@ const QuizCreationPage: React.FC = () => {
         console.log('保存成功！');
         setHasUnsavedChanges(false);
 
+        // localStorageから各種チャット履歴をクリア
+        if (user?.id) {
+          // sessionStorageから学習項目を取得
+          const learningTopic = sessionStorage.getItem('learningTopic');
+
+          // review chat履歴のクリア
+          if (learningTopic) {
+            const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
+            localStorage.removeItem(reviewStorageKey);
+            console.log(`localStorage removed: ${reviewStorageKey}`);
+          }
+
+          // explanation chat履歴のクリア
+          const explanationStorageKey = `explanation-chat-messages:${user.id}`;
+          localStorage.removeItem(explanationStorageKey);
+          console.log(`localStorage removed: ${explanationStorageKey}`);
+
+          // chat (問題作成チャット) 履歴のクリア
+          const chatStorageKey = `chatMessages:${user.id}`;
+          localStorage.removeItem(chatStorageKey);
+          console.log(`localStorage removed: ${chatStorageKey}`);
+        }
+
         // 学習項目選択状態をクリア（次回の問題作成時に再度選択させる）
         clearTopicSelection();
 

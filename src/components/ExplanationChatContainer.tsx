@@ -3,16 +3,22 @@ import type { Message } from '../types/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { explanationChatService } from '../services/explanationChatService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ExplanationChatContainerProps {
   showHeader?: boolean;
 }
 
 export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> = ({ showHeader = true }) => {
+  const { user } = useAuth();
+
   // localStorageからメッセージ履歴を読み込む
   const loadMessages = (): Message[] => {
+    if (!user?.id) return [];
+
     try {
-      const stored = localStorage.getItem('explanationChatMessages');
+      const storageKey = `explanation-chat-messages:${user.id}`;
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsedMessages = JSON.parse(stored) as Message[];
         return parsedMessages.map((msg) => ({
@@ -30,18 +36,16 @@ export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> =
   const [isLoading, setIsLoading] = useState(false);
 
   // メッセージをlocalStorageに保存
-  const saveMessages = (msgs: Message[]) => {
+  useEffect(() => {
+    if (!user?.id) return;
+
     try {
-      localStorage.setItem('explanationChatMessages', JSON.stringify(msgs));
+      const storageKey = `explanation-chat-messages:${user.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(messages));
     } catch (error) {
       console.error('Failed to save explanation chat messages to localStorage:', error);
     }
-  };
-
-  // messagesが変更されたらlocalStorageに保存
-  useEffect(() => {
-    saveMessages(messages);
-  }, [messages]);
+  }, [messages, user?.id]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -80,9 +84,12 @@ export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> =
   };
 
   const handleClearHistory = () => {
+    if (!user?.id) return;
+
     explanationChatService.clearHistory();
     setMessages([]);
-    localStorage.removeItem('explanationChatMessages');
+    const storageKey = `explanation-chat-messages:${user.id}`;
+    localStorage.removeItem(storageKey);
   };
 
   return (

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-4o" /*temperature = 0.7*/ } = body;
+    const { messages, model = "gpt-5" } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -25,19 +25,29 @@ export async function POST(request: NextRequest) {
     const chatModel = new ChatOpenAI({
       apiKey: OPENAI_API_KEY,
       model,
-      // temperature,
     });
 
-    const response = await chatModel.invoke(messages);
+    // NextRequestのAbortSignalを取得してChatOpenAIに渡す
+    const response = await chatModel.invoke(messages, {
+      signal: request.signal,
+    });
 
     return NextResponse.json({
       content: response.content,
       role: 'assistant',
     });
   } catch (error) {
-    console.error("Error in chat API:", error);
+    // AbortErrorの場合は特別な処理（クライアントが意図的にキャンセルした）
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log("Request was aborted by client");
+      return NextResponse.json(
+        { error: "Request cancelled" },
+        { status: 499 } // クライアント側でのキャンセルを示すステータスコード
+      );
+    }
+    console.error("Error in review-chat API:", error);
     return NextResponse.json(
-      { error: "Failed to process chat request" },
+      { error: "Failed to process review chat request" },
       { status: 500 }
     );
   }

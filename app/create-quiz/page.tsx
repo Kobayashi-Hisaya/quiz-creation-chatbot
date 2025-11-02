@@ -4,10 +4,7 @@ import Split from 'react-split';
 import '@/styles/split.css';
 import { ChatContainer } from '@/components/ChatContainer';
 import { RightPanel } from '@/components/RightPanel';
-import { LearningTopicSelector } from '@/components/LearningTopicSelector';
 import { useProblem } from '@/contexts/ProblemContext';
-import { chatService } from '@/services/chatService';
-import type { LearningTopic } from '@/components/LearningTopicSelector';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const SPLIT_STORAGE_KEY = 'create-quiz-split';
@@ -29,8 +26,7 @@ const getInitialSplitSizes = (): number[] => {
 };
 
 const HomePage: React.FC = () => {
-  const { problemData, setLearningTopic, spreadsheetState, hasTopicBeenSelected } = useProblem();
-  const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const { spreadsheetState } = useProblem();
   const [currentSpreadsheetData, setCurrentSpreadsheetData] = useState<DataProblemTemplateData | null>(null);
   const [, setCurrentSpreadsheetId] = useState<string | null>(null);
   const getCurrentDataRef = useRef<(() => Promise<DataProblemTemplateData | null>) | null>(null);
@@ -40,12 +36,12 @@ const HomePage: React.FC = () => {
   // Split sizes (percent).
   const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
-  // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
-  useEffect(() => {
-    if (!hasTopicBeenSelected) {
-      setShowTopicSelector(true);
-    }
-  }, [hasTopicBeenSelected]);
+  // TopicSelectorは review-learning-topic ページで表示されるため、ここでは表示しない
+  // useEffect(() => {
+  //   if (!hasTopicBeenSelected) {
+  //     setShowTopicSelector(true);
+  //   }
+  // }, [hasTopicBeenSelected]);
 
   // ページロード時にスプレッドシートデータを復元（1回のみ実行）
   useEffect(() => {
@@ -73,12 +69,6 @@ const HomePage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restorationAttempted, isDataRestored, spreadsheetState?.spreadsheetId, currentSpreadsheetData]);
-
-  const handleTopicSelect = (topic: LearningTopic) => {
-    setLearningTopic(topic);
-    chatService.setLearningTopic(topic);
-    setShowTopicSelector(false);
-  };
 
   // スプレッドシートデータの変更を処理
   const handleSpreadsheetDataChange = (data: DataProblemTemplateData) => {
@@ -151,10 +141,7 @@ const HomePage: React.FC = () => {
         </div>
       </Split>
 
-      <LearningTopicSelector 
-        isOpen={showTopicSelector}
-        onSelect={handleTopicSelect}
-      />
+      {/* LearningTopicSelector は review-learning-topic ページで表示されるため削除 */}
     </>
   );
 };

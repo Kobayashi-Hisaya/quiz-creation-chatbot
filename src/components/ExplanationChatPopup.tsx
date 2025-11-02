@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExplanationChatContainer } from './ExplanationChatContainer';
 import { explanationChatService } from '../services/explanationChatService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ExplanationChatPopupProps {
   isOpen: boolean;
@@ -8,9 +9,14 @@ interface ExplanationChatPopupProps {
 }
 
 export const ExplanationChatPopup: React.FC<ExplanationChatPopupProps> = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+
   const handleClearHistory = () => {
+    if (!user?.id) return;
+
     explanationChatService.clearHistory();
-    localStorage.removeItem('explanationChatMessages');
+    const storageKey = `explanation-chat-messages:${user.id}`;
+    localStorage.removeItem(storageKey);
     // チャットコンテナの再レンダリングを促すために、少し遅延してから強制リロード
     window.location.reload();
   };

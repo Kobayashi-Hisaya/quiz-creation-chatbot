@@ -21,7 +21,7 @@ export interface Problem {
   // データ整理問題用フィールド
   spreadsheet_url: string | null;
   spreadsheet_id: string | null;
-  problem_category: string; // DEFAULT 'data_analysis'
+  problem_category: string; // DEFAULT ''
   session_id: string | null; // UUID
   table_data: Record<string, unknown> | null; // JSONB
   created_at: string; // ISO 8601 timestamp
@@ -38,7 +38,7 @@ export interface ChatHistory {
   id: string; // UUID
   problem_id: string; // UUID, references problems(id)
   user_id: string; // UUID, references auth.users(id)
-  chat_type: 'creation' | 'explanation';
+  chat_type: 'creation' | 'explanation' | 'review';
   messages: ChatMessage[]; // JSONB
   created_at: string; // ISO 8601 timestamp
 }
