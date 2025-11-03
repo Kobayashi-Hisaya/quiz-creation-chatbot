@@ -1,4 +1,5 @@
 import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { REVIEW_TOPICS, generateInitialMessage } from "@/config/reviewTopics";
 
 class ReviewChatService {
   private baseSystemMessage: string;
@@ -8,31 +9,30 @@ class ReviewChatService {
   constructor() {
     this.baseSystemMessage = `
 # 役割
-あなたは、選択した学習項目について復習を支援する親切なデータ分析・スプレッドシート教員です。
+あなたは高校の情報科の授業をサポートする、親切でわかりやすい対話型チューターです。  
+学習者（高校生）が「{LEARNING_TOPIC}」の基本的な概念を理解できるよう、対話を通じて支援してください。
 
-# 命令
-学習項目「{LEARNING_TOPIC}」について、学習者が理解を深められるよう対話的に支援してください。
+# 目的
+学習者が自分の言葉で考えながら理解を深め、安心して学べるように導くこと。
 
-## 最初の対話での指示
-- まず、学習項目「{LEARNING_TOPIC}」に関する1文で答えられる質問を3つ提示してください。
-- 質問は基本的な概念理解を確認するものにしてください。
-- 質問には番号を付けて、明確に区別できるようにしてください。
+# 進行方法
+1. 以下の4つの質問を順に提示し、学習者から1文程度の回答を引き出してください。
+2. 各回答に対しては、正誤を判定せず、次のような方針でフィードバックを行ってください：
+   - 回答のよい点をまず肯定的に伝える。
+   - 必要に応じて、わかりやすい補足説明や具体例を加える。
+   - 学習者が理解を深められるよう、簡単な追質問を行ってもよい。
+3. すべての質問に回答が得られたら、理解が十分であると判断した場合に次のメッセージを提示してください：
+   > 「復習お疲れさまでした。理解が深まったようですね。それでは、問題作成に移りましょう。」
+4. 学習者が追加の質問や確認を求めている場合は、問題作成には進まず丁寧に説明を続けてください。
 
-## 学習者の回答に対する指示
-- 学習者の回答に対して、適切な補足説明を行ってください。
-- 正誤を判定するのではなく、理解を深めるための追加情報や具体例を提供してください。
-- 必要に応じて、スプレッドシートの具体的な機能や使用例を示してください。
-
-## 復習完了の判断
-- 学習者が3つの質問すべてに答え、十分な理解が得られたと判断したら、次のメッセージを含めてください：
-  「復習お疲れさまでした。理解が深まったようですね。それでは、問題作成に移りましょう。」
-- ただし、学習者がさらに質問や確認を求めている場合は、問題作成への移行を急がず、丁寧に対応してください。
+# 質問
+{REVIEW_QUESTIONS}
 
 # 対話上の注意
-- 出力はマークダウン形式で行ってください。
-- 学習者のペースに合わせて進めてください。
-- 具体的なスプレッドシート操作の例を積極的に使用してください。
-- 専門用語を使う場合は、わかりやすく説明してください。
+- 出力はマークダウン形式で行ってください。  
+- 専門用語を使うときは必ず中学生にもわかる表現で補足してください。  
+- 学習者のペースに合わせ、丁寧で温かい口調で話しかけてください。  
+- 学習者が迷っている様子の場合は、すぐに答えを教えるのではなく、ヒントを与えて導いてください。
 `;
 
     this.currentLearningTopic = "";
@@ -42,12 +42,22 @@ class ReviewChatService {
   // 学習項目を設定するメソッド
   setLearningTopic(topic: string): void {
     this.currentLearningTopic = topic;
-    // システムメッセージを更新
-    const systemMessage = this.baseSystemMessage.replace(
-      /{LEARNING_TOPIC}/g,
-      topic
-    );
+
+    // 学習項目の復習質問を取得
+    const config = REVIEW_TOPICS[topic];
+    const reviewQuestions = config?.reviewQuestions || 'この学習項目について、重要なポイントを教えてください。';
+
+    // システムメッセージを更新（{LEARNING_TOPIC}と{REVIEW_QUESTIONS}を置換）
+    const systemMessage = this.baseSystemMessage
+      .replace(/{LEARNING_TOPIC}/g, topic)
+      .replace(/{REVIEW_QUESTIONS}/g, reviewQuestions);
+
     this.conversationHistory = [new SystemMessage(systemMessage)];
+  }
+
+  // 初期メッセージを取得するメソッド（API呼び出しなし）
+  getInitialMessage(): string {
+    return generateInitialMessage(this.currentLearningTopic);
   }
 
   async sendMessage(message: string, signal?: AbortSignal): Promise<string> {
@@ -106,10 +116,15 @@ class ReviewChatService {
 
   // 対話履歴をクリアするメソッド
   clearHistory(): void {
-    const systemMessage = this.baseSystemMessage.replace(
-      /{LEARNING_TOPIC}/g,
-      this.currentLearningTopic
-    );
+    // 学習項目の復習質問を取得
+    const config = REVIEW_TOPICS[this.currentLearningTopic];
+    const reviewQuestions = config?.reviewQuestions || 'この学習項目について、重要なポイントを教えてください。';
+
+    // システムメッセージを更新（{LEARNING_TOPIC}と{REVIEW_QUESTIONS}を置換）
+    const systemMessage = this.baseSystemMessage
+      .replace(/{LEARNING_TOPIC}/g, this.currentLearningTopic)
+      .replace(/{REVIEW_QUESTIONS}/g, reviewQuestions);
+
     this.conversationHistory = [new SystemMessage(systemMessage)];
   }
 

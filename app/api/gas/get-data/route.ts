@@ -8,6 +8,8 @@ interface SheetData {
   sheetName: string;
   sheetId: number;
   tableData: any[][];
+  startRow: number;      // データ範囲の開始行（1始まり）
+  startColumn: number;   // データ範囲の開始列（1始まり）
   lastRow: number;
   lastColumn: number;
 }
@@ -83,6 +85,11 @@ export async function POST(request: NextRequest) {
       lastModified: gasResult.data.lastModified
     };
 
+    console.log('==============data start=============');
+    console.log('problemText:', result.problemText);
+    console.log('answerText:', result.answerText);
+    console.log('sheets:', JSON.stringify(result.sheets, null, 2));
+    console.log('==============data end=============');
     console.log('Data retrieved successfully');
 
     return NextResponse.json(result);
