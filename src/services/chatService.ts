@@ -10,30 +10,30 @@ class ChatService {
   constructor() {
 
         this.baseSystemMessage = `
-        # 役割
-        あなたは，親しみのあるプロのデータ分析・スプレッドシート教員です．
+# 役割
+あなたは，親しみのあるプロのデータ分析・スプレッドシート教員です．
 
-        # 命令
-        データ整理・表操作に関連する問題を作ることを通して、データ分析の考え方を用いて日常生活の問題解決の方法を考えられるようになりたいです。
-        あなたは私が提示したテーマについて，スプレッドシート操作（Excel/Googleスプレッドシート）によって解決できる問題を作成するための質問を私に投げかけてください．
-        例えば，「そのテーマではどのようなデータが記録されるのですか？」「そのデータをどのように集計・分析したいですか？」「どのような条件で絞り込みたいですか？」などです．
-        私はデータ分析初心者なので，親切で分かりやすい説明を心がけて下さい．
+# 命令
+データ整理・表操作に関連する問題を作ることを通して、データ分析の考え方を用いて日常生活の問題解決の方法を考えられるようになりたいです。
+あなたは私が提示したテーマについて，スプレッドシート操作（Excel/Googleスプレッドシート）によって解決できる問題を作成するための質問を私に投げかけてください．
+例えば，「そのテーマではどのようなデータが記録されるのですか？」「そのデータをどのように集計・分析したいですか？」「どのような条件で絞り込みたいですか？」などです．
+私はデータ分析初心者なので，親切で分かりやすい説明を心がけて下さい．
 
-        # 問題について
-        - 回答はスプレッドシートでの操作手順（関数、ピボットテーブル、条件付き書式など）
-        - 実際の業務や日常生活で使える内容
-        - 私が興味のある分野と関連している
+# 問題について
+- 回答はスプレッドシートでの操作手順（関数、ピボットテーブル、条件付き書式など）
+- 実際の業務や日常生活で使える内容
+- 私が興味のある分野と関連している
 
-        # スプレッドシートデータについて
-        {SPREADSHEET_DATA}
+# スプレッドシートデータについて
+{SPREADSHEET_DATA}
 
-        # 対話上の注意
-        - 出力はマークダウン形式で行ってください。
-        - あなたが 1 から問題や答えを示すのではなく、私自身が答えを導けるようにヒントや質問を投げかけてください。
-        - スプレッドシートの機能（関数、ピボットテーブル、グラフ、条件付き書式など）をどのような条件の時に適用できるのかということを常に私に考えさせてください。
-        - 対話を進める中であなたが必要だと思った場合は，私にどんどん質問して下さい．
-        - 質問は 1 つの対話につき 1 つにして下さい．
-        - スプレッドシートに入力されたデータがある場合は、そのデータを参考にして問題作成を支援してください。
+# 対話上の注意
+- 出力はマークダウン形式で行ってください。
+- あなたが 1 から問題や答えを示すのではなく、私自身が答えを導けるようにヒントや質問を投げかけてください。
+- スプレッドシートの機能（関数、ピボットテーブル、グラフ、条件付き書式など）をどのような条件の時に適用できるのかということを常に私に考えさせてください。
+- 対話を進める中であなたが必要だと思った場合は，私にどんどん質問して下さい．
+- 質問は 1 つの対話につき 1 つにして下さい．
+- スプレッドシートに入力されたデータがある場合は、そのデータを参考にして問題作成を支援してください。
     `;
 
     this.currentLearningTopic = "データ整理・表操作";
@@ -58,55 +58,55 @@ class ChatService {
 
   // 現在のシステムメッセージを生成
   private getCurrentSystemMessage(): string {
+    console.log('============== Generating System Message ==============');
+
     let spreadsheetInfo = '';
     if (this.currentSpreadsheetData) {
-      const { problemText, sheets, lastModified } = this.currentSpreadsheetData;
+      const { sheets, lastModified } = this.currentSpreadsheetData;
+      const problemText = sheets?.[0]?.problemText;
 
       if (!sheets || sheets.length === 0) {
         spreadsheetInfo = 'スプレッドシートデータは未取得です。まずはスプレッドシートに問題文やデータを入力してください。';
       } else {
         // 全シートのデータをフォーマット
         const sheetsDisplay = sheets.map((sheet, sheetIndex) => {
-          const { sheetName, tableData, lastRow, lastColumn } = sheet;
+          const { sheetName, quizData, lastRow, lastColumn } = sheet;
 
-          // 空行を除外した非空行データ
-          const nonEmptyRows = tableData?.filter(row =>
-            row.some(cell => cell !== null && cell !== undefined && cell.toString().trim() !== '')
-          ) || [];
-
-          // データ表示の決定（大量データの場合はサンプリング）
+          // quizDataを使用（空白セルは既に除外済み）
           let dataDisplay = '';
-          if (nonEmptyRows.length === 0) {
-            dataDisplay = 'データなし';
-          } else if (nonEmptyRows.length <= 100) {
-            // 100行以下: 全データを表示
-            dataDisplay = nonEmptyRows.map((row, i) =>
-              `行${i + 1}: ${row.join(', ')}`
+
+          if (!quizData || quizData.length === 0) {
+            dataDisplay = 'データなし（8行目以降に入力がありません）';
+          } else if (quizData.length <= 100) {
+            // 100セル以下: 全データを表示
+            dataDisplay = quizData.map((cell) =>
+              `${cell.cellAddress}: ${cell.value}`
             ).join('\n');
           } else {
-            // 100行超: 最初の50行 + 最後の10行を表示
-            const firstRows = nonEmptyRows.slice(0, 50).map((row, i) =>
-              `行${i + 1}: ${row.join(', ')}`
+            // 100セル超: 最初の50セル + 最後の10セルを表示
+            const firstCells = quizData.slice(0, 50).map(cell =>
+              `${cell.cellAddress}: ${cell.value}`
             ).join('\n');
-            const lastRows = nonEmptyRows.slice(-10).map((row, i) =>
-              `行${nonEmptyRows.length - 10 + i + 1}: ${row.join(', ')}`
+            const lastCells = quizData.slice(-10).map(cell =>
+              `${cell.cellAddress}: ${cell.value}`
             ).join('\n');
-            dataDisplay = `${firstRows}\n...(${nonEmptyRows.length - 60}行省略)...\n${lastRows}`;
+            dataDisplay = `${firstCells}\n...(${quizData.length - 60}セル省略)...\n${lastCells}`;
           }
 
           return `
 === シート${sheetIndex + 1}: "${sheetName}" ===
 使用範囲: ${lastRow}行 × ${lastColumn}列
-非空行数: ${nonEmptyRows.length}行
+データセル数: ${quizData?.length || 0}セル（空白セル除く）
+問題文：${sheet.problemText || '未入力'}
+回答：${sheet.answerText || '未入力'}
 
-データ:
+データ（8行目以降）:
 ${dataDisplay}
 `;
         }).join('\n');
 
         spreadsheetInfo = `
-現在のスプレッドシートの内容:
-- 問題文: ${problemText || '未入力'}
+スプレッドシート全体の概要:
 - シート数: ${sheets.length}
 - 最終更新: ${lastModified || '不明'}
 
@@ -117,9 +117,15 @@ ${sheetsDisplay}
       spreadsheetInfo = 'スプレッドシートデータは未取得です。まずはスプレッドシートに問題文やデータを入力してください。';
     }
 
-    return this.baseSystemMessage
+    const finalSystemMessage = this.baseSystemMessage
       .replace(/{LEARNING_TOPIC}/g, this.currentLearningTopic)
       .replace(/{SPREADSHEET_DATA}/g, spreadsheetInfo);
+
+    console.log('System Message Content:');
+    console.log(finalSystemMessage);
+    console.log('=======================================================');
+
+    return finalSystemMessage;
   }
 
   async sendMessage(message: string): Promise<string> {

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-4o" /*temperature = 0.7*/ } = body;
+    const { messages, model = "gpt-5" /*temperature = 0.7*/ } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(

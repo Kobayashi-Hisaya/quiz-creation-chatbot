@@ -68,6 +68,11 @@ export async function POST(request: NextRequest) {
     ${learningTopic}
     `;
 
+    // ユーザープロンプトをログ出力
+    console.log('============== Quiz Generation User Prompt ==============');
+    console.log(userPrompt);
+    console.log('=========================================================');
+
     const messages = [new SystemMessage(systemPrompt), new HumanMessage(userPrompt)];
     const response = await model.invoke(messages);
     const responseText = response.content as string;
