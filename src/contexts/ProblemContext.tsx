@@ -56,7 +56,7 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const initialData: ProblemData = {
     problem: '',
     code: '',
-    language: 'typescript',
+    language: '',
     learningTopic: 'モデル化とシミュレーション/モンテカルロ法'
   };
 

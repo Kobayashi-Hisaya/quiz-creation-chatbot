@@ -265,6 +265,12 @@ ${sheetsDisplay}
   getInitialMessage(): string {
     return generateInitialMessage(this.currentLearningTopic);
   }
+
+  // 初期メッセージをconversationHistoryに追加するメソッド
+  addInitialMessage(message: string): void {
+    const aiMessage = new AIMessage(message);
+    this.conversationHistory.push(aiMessage);
+  }
 }
 
 export const chatService = new ChatService();

@@ -85,6 +85,10 @@ export const ReviewChatContainer: React.FC<ReviewChatContainerProps> = ({
         sender: 'bot',
         timestamp: new Date(),
       };
+
+      // 初期メッセージをReviewChatServiceのconversationHistoryに追加
+      reviewChatService.addInitialMessage(initialMessageContent);
+
       setMessages([botMessage]);
       setHasInitialized(true);
 

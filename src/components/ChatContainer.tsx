@@ -99,12 +99,16 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       chatService.setLearningTopic(learningTopic);
 
       // 初期メッセージを取得して表示
+      const initialMessageContent = chatService.getInitialMessage();
       const initialMessage: Message = {
         id: 'initial-' + Date.now().toString(),
-        content: chatService.getInitialMessage(),
+        content: initialMessageContent,
         sender: 'bot',
         timestamp: new Date(),
       };
+
+      // 初期メッセージをChatServiceのconversationHistoryに追加
+      chatService.addInitialMessage(initialMessageContent);
 
       setMessages([initialMessage]);
       hasInitialized.current = true;
