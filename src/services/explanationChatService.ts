@@ -54,8 +54,9 @@ class ExplanationChatService {
         },
         body: JSON.stringify({
           messages,
-          model: 'gpt-4',
-          temperature: 0.7,
+          model: 'gpt-5',
+          reasoning_effort: 'low',
+          verbosity: 'low'
         }),
       });
 

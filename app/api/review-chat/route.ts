@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-5" } = body;
+    const { messages, model = "gpt-5", reasoning_effort = "low", verbosity = "low" } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
     const chatModel = new ChatOpenAI({
       apiKey: OPENAI_API_KEY,
       model,
+      verbosity,
+      modelKwargs: {
+      reasoning_effort: reasoning_effort
+  },
+
     });
 
     // NextRequestのAbortSignalを取得してChatOpenAIに渡す
