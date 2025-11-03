@@ -11,7 +11,6 @@
 // テンプレートのスプレッドシートID
 const TEMPLATE_SPREADSHEET_ID = '11MO0z4zCvf2G3xdHBoLw_l7-p-IzZ-AiMDNJN-NYQ7A';
 
-// <<< 修正 (1) >>>
 // 保存先のフォルダIDを指定
 const TARGET_FOLDER_ID = '1ctTvwePc7tPj0HML3q6LxEPw9kaLOrOv';
 
@@ -32,25 +31,15 @@ function createDataProblemSheet(userEmail, sessionId) {
     // テンプレートをコピー
     const newSheet = templateSheet.copy(newSheetName);
 
-    // <<< 修正 (2) >>>
-    // ここからが追加部分です
+    // ファイルを指定フォルダに移動
     try {
-      // DriveApp を使って、作成されたファイルを取得
       const newFile = DriveApp.getFileById(newSheet.getId());
-      
-      // 保存先のフォルダを取得
       const targetFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
-      
-      // ファイルを指定フォルダに移動
       newFile.moveTo(targetFolder);
       console.log('Moved new sheet to folder:', TARGET_FOLDER_ID);
-      
     } catch (e) {
-      // フォルダへの移動に失敗した場合（例: フォルダIDが間違っている、権限がないなど）
       console.warn('Could not move file to target folder. File remains in root.', e.message);
-      // エラーにせず、処理は続行
     }
-    // <<< 追加部分ここまで >>>
     
     // 作成者に編集権限を付与
     if (userEmail && userEmail.includes('@')) {
@@ -83,7 +72,7 @@ function createDataProblemSheet(userEmail, sessionId) {
 /**
  * スプレッドシート内の「全シート」から「全データ」を取得する
  * @param {string} spreadsheetId 調査対象のスプレッドシートID
- * @returns {Object} 問題文と全シートのデータを含むオブジェクト
+ * @returns {Object} 全シートのデータを含むオブジェクト（各シートにproblemText, answerText, quizDataを含む）
  */
 function getSheetData(spreadsheetId) {
   try {
@@ -94,44 +83,74 @@ function getSheetData(spreadsheetId) {
     // すべてのシートを取得
     const allSheets = spreadsheet.getSheets();
 
-    // 新仕様: 単純化のため A2 を問題文、A5 を answerText (単一セル) として取得します
-    let problemText = '';
-    let answerText = '';
-    if (allSheets.length > 0) {
-      const firstSheet = allSheets[0];
-      try {
-        // A2: 問題文（単一セル）
-        const a2 = firstSheet.getRange('A2').getValue();
-        problemText = a2 ? String(a2) : '';
-      } catch (e) {
-        console.warn('Failed to read A2 for problemText:', e && e.message ? e.message : e);
-        problemText = '';
-      }
-
-      try {
-        // A5: answerText（単一セル）
-        const a5 = firstSheet.getRange('A5').getValue();
-        answerText = a5 ? String(a5) : '';
-      } catch (e) {
-        console.warn('Failed to read A5 for answerText:', e && e.message ? e.message : e);
-        answerText = '';
-      }
-    }
-
     const sheets = []; // 全シートのデータを格納する配列
 
     // for...of ループですべてのシートを順番に処理
     for (const sheet of allSheets) {
-      // 現在のシートでデータが入力されている範囲全体を取得
+      // A2: 問題文（単一セル）
+      let problemText = '';
+      try {
+        const a2 = sheet.getRange('A2').getValue();
+        problemText = a2 ? String(a2) : '';
+      } catch (e) {
+        console.warn('Failed to read A2 for problemText:', e && e.message ? e.message : e);
+      }
+
+      // A5: answerText（単一セル）
+      let answerText = '';
+      try {
+        const a5 = sheet.getRange('A5').getValue();
+        answerText = a5 ? String(a5) : '';
+      } catch (e) {
+        console.warn('Failed to read A5 for answerText:', e && e.message ? e.message : e);
+      }
+
+      // 8行目以降のデータを取得（A～Z列）
+      const quizData = [];
+      const lastRow = sheet.getLastRow();
+
+      // 8行目以降にデータがある場合のみ処理
+      if (lastRow >= 8) {
+        // 8行目から最終行まで、A列（1）～Z列（26）のデータを取得
+        const quizRange = sheet.getRange(8, 1, lastRow - 7, 26);
+        const quizValues = quizRange.getValues();
+
+        // 各セルをオブジェクトに変換（空白セルは除外）
+        for (let rowIdx = 0; rowIdx < quizValues.length; rowIdx++) {
+          const actualRow = rowIdx + 8; // 実際の行番号（8始まり）
+
+          for (let colIdx = 0; colIdx < 26; colIdx++) {
+            const actualCol = colIdx + 1; // 実際の列番号（1始まり）
+            const colLetter = String.fromCharCode(65 + colIdx); // A～Z
+            const cellAddress = colLetter + actualRow;
+            const value = quizValues[rowIdx][colIdx];
+
+            // 値を文字列に変換
+            const stringValue = value !== null && value !== undefined ? String(value) : '';
+
+            // 空白セル（空文字列またはスペースのみ）はスキップ
+            if (stringValue.trim() !== '') {
+              quizData.push({
+                cellAddress: cellAddress,
+                value: stringValue
+              });
+            }
+          }
+        }
+      }
+
+      // 現在のシートでデータが入力されている範囲全体を取得（後方互換のため保持）
       const dataRange = sheet.getDataRange();
-      // その範囲の値を二次元配列として取得
       const tableData = dataRange.getValues();
 
       // 各シートの結果をオブジェクトにまとめる
       const sheetData = {
         sheetName: sheet.getName(),    // シート名
         sheetId: sheet.getSheetId(),   // シートID
-        tableData: tableData,          // シートの全データ
+        problemText: problemText,      // A2セルの値
+        answerText: answerText,        // A5セルの値
+        quizData: quizData,            // 8行目以降のデータ（A～Z列）
+        tableData: tableData,          // シートの全データ（後方互換用）
         startRow: dataRange.getRow(),  // データ範囲の開始行（1始まり）
         startColumn: dataRange.getColumn(), // データ範囲の開始列（1始まり）
         lastRow: sheet.getLastRow(),   // 最終行
@@ -143,11 +162,7 @@ function getSheetData(spreadsheetId) {
     }
 
     // 最終的な結果オブジェクト
-    // この GAS は A2/A5 を素直に返します。
-    // - frontend 側で answerText を problemData.code にマッピングする設計 (Aプラン)
     const result = {
-      problemText: problemText,
-      answerText: answerText,
       sheets: sheets,
       lastModified: new Date().toISOString()
     };

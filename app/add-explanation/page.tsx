@@ -102,9 +102,17 @@ const AddExplanationPage: React.FC = () => {
 
   // 問題を保存してdashboardに戻る
   const handleSaveProblem = async () => {
+    // 解説の入力チェック
     if (!explanation.trim()) {
       const confirmed = window.confirm('解説が入力されていません。このまま保存しますか？');
       if (!confirmed) return;
+    }
+
+    // 作成チャット履歴のバリデーション
+    const creationHistory = chatService.getConversationHistory();
+    if (creationHistory.length === 0) {
+      alert('問題作成チャット履歴が見つかりません。create-quizページから問題を作成してください。');
+      return;
     }
 
     if (!user?.id) {
@@ -131,8 +139,12 @@ const AddExplanationPage: React.FC = () => {
         table_data: null,
       };
 
-      // チャット履歴を取得（review chat履歴も含める）
+      // チャット履歴を取得（creation, explanation, review chat履歴を含める）
       const chatHistories = [
+        {
+          chat_type: 'creation' as const,
+          messages: chatService.getConversationHistory(),
+        },
         {
           chat_type: 'explanation' as const,
           messages: explanationChatService.getConversationHistory(),
@@ -167,7 +179,7 @@ const AddExplanationPage: React.FC = () => {
           console.log(`localStorage removed: ${explanationStorageKey}`);
 
           // chat (問題作成チャット) 履歴のクリア
-          const chatStorageKey = `chatMessages:${user.id}`;
+          const chatStorageKey = `chatMessages:${user.id}:${learningTopic}`;
           localStorage.removeItem(chatStorageKey);
           console.log(`localStorage removed: ${chatStorageKey}`);
         }

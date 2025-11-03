@@ -1,7 +1,15 @@
+export interface QuizCellData {
+  cellAddress: string;  // "A8", "B8", "C10" など
+  value: string;        // セルの値（空白セルは含まれない）
+}
+
 export interface SheetData {
   sheetName: string;
   sheetId: number;
-  tableData: any[][];
+  problemText: string;   // A2セルの値
+  answerText: string;    // A5セルの値
+  quizData: QuizCellData[];  // 8行目以降のデータ（A～Z列）
+  tableData: any[][];    // シートの全データ（後方互換用）
   startRow: number;      // データ範囲の開始行（1始まり）
   startColumn: number;   // データ範囲の開始列（1始まり）
   lastRow: number;
@@ -9,10 +17,9 @@ export interface SheetData {
 }
 
 export interface DataProblemTemplateData {
-  problemText?: string;
-  answerText?: string;
-  // convenience: code mapped from spreadsheet's answerText
-  code?: string;
+  problemText?: string;  // convenience: sheets[0].problemText
+  answerText?: string;   // convenience: sheets[0].answerText
+  code?: string;         // convenience: mapped from sheets[0].answerText
   sheets?: SheetData[];
   lastModified?: string;
 }
@@ -31,8 +38,6 @@ export interface CreateSheetResponse {
 }
 
 export interface GetDataResponse {
-  problemText: string;
-  answerText?: string;
   sheets: SheetData[];
   lastModified: string;
 }
@@ -131,11 +136,14 @@ class GASClientService {
         console.error('Failed to parse JSON from GAS get-data response:', e);
         throw new Error(`Invalid JSON response from Google Apps Script: ${responseText.substring(0, 200)}`);
       }
+
+      // sheets[0]から便利なショートカットフィールドを提供
+      const firstSheet = result.sheets?.[0];
       return {
-        problemText: result.problemText,
-        answerText: result.answerText || undefined,
+        problemText: firstSheet?.problemText,
+        answerText: firstSheet?.answerText,
         // convenience: map answerText to code so callers can use either
-        code: result.answerText || undefined,
+        code: firstSheet?.answerText,
         sheets: result.sheets,
         lastModified: result.lastModified
       };
