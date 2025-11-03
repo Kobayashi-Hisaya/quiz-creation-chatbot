@@ -376,7 +376,7 @@ const ProblemDetailPageContent: React.FC = () => {
                         }
                       }}
                     >
-                      {tab === 'review' ? '復習' : tab === 'creation' ? '作成' : '解説'}
+                      {tab === 'review' ? '復習' : tab === 'creation' ? '作問' : '解説'}
                     </button>
                   ))}
                 </div>
@@ -635,7 +635,7 @@ const ProblemDetailPageContent: React.FC = () => {
                       }
                     }}
                   >
-                    {tab === 'review' ? '復習' : tab === 'creation' ? '作成' : '解説'}
+                    {tab === 'review' ? '復習' : tab === 'creation' ? '作問' : '解説'}
                   </button>
                 ))}
               </div>
