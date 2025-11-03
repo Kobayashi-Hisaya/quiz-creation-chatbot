@@ -1,5 +1,6 @@
 import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import type { DataProblemTemplateData } from './gasClientService';
+import { generateInitialMessage } from '@/config/createQuiz';
 
 class ChatService {
   private baseSystemMessage: string;
@@ -258,6 +259,11 @@ ${sheetsDisplay}
         content: msg.content as string,
       };
     });
+  }
+
+  // 初期メッセージを取得するメソッド
+  getInitialMessage(): string {
+    return generateInitialMessage(this.currentLearningTopic);
   }
 }
 
