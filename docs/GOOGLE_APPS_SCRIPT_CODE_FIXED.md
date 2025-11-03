@@ -132,6 +132,8 @@ function getSheetData(spreadsheetId) {
         sheetName: sheet.getName(),    // シート名
         sheetId: sheet.getSheetId(),   // シートID
         tableData: tableData,          // シートの全データ
+        startRow: dataRange.getRow(),  // データ範囲の開始行（1始まり）
+        startColumn: dataRange.getColumn(), // データ範囲の開始列（1始まり）
         lastRow: sheet.getLastRow(),   // 最終行
         lastColumn: sheet.getLastColumn() // 最終列
       };
@@ -151,6 +153,9 @@ function getSheetData(spreadsheetId) {
     };
 
     console.log('All sheet data retrieved successfully.');
+    console.log('==============data start=============')
+    console.log(result.sheets)
+    console.log('==============data end=============')
     return result;
 
   } catch (error) {

@@ -2,6 +2,8 @@ export interface SheetData {
   sheetName: string;
   sheetId: number;
   tableData: any[][];
+  startRow: number;      // データ範囲の開始行（1始まり）
+  startColumn: number;   // データ範囲の開始列（1始まり）
   lastRow: number;
   lastColumn: number;
 }

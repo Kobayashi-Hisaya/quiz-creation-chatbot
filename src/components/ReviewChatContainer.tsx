@@ -77,44 +77,56 @@ export const ReviewChatContainer: React.FC<ReviewChatContainerProps> = ({
       initializingRef.current = true;
       reviewChatService.setLearningTopic(learningTopic);
 
-      // AbortControllerを作成
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      // 最初の質問を自動的に取得
-      const initializeChat = async () => {
-        setIsLoading(true);
-        try {
-          const initialMessage = `こんにちは。「${learningTopic}」について復習したいです。よろしくお願いします。`;
-          const botResponse = await reviewChatService.sendMessage(initialMessage, abortController.signal);
-
-          // リクエストがキャンセルされていたら処理しない
-          if (abortController.signal.aborted) {
-            return;
-          }
-
-          const botMessage: Message = {
-            id: Date.now().toString(),
-            content: botResponse,
-            sender: 'bot',
-            timestamp: new Date(),
-          };
-          setMessages([botMessage]);
-          setHasInitialized(true); // 初期化完了フラグを設定
-        } catch (error) {
-          // AbortErrorの場合はログを出さない（意図的なキャンセル）
-          if (error instanceof Error && error.name === 'AbortError') {
-            console.log('Chat initialization was cancelled');
-          } else {
-            console.error('Failed to initialize chat:', error);
-          }
-        } finally {
-          setIsLoading(false);
-          abortControllerRef.current = null;
-        }
+      // 固定の初期メッセージを即座に表示（API呼び出しなし）
+      const initialMessageContent = reviewChatService.getInitialMessage();
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        content: initialMessageContent,
+        sender: 'bot',
+        timestamp: new Date(),
       };
+      setMessages([botMessage]);
+      setHasInitialized(true);
 
-      initializeChat();
+      // 【旧実装: コメントアウト】確認後に削除予定
+      // // AbortControllerを作成
+      // const abortController = new AbortController();
+      // abortControllerRef.current = abortController;
+      //
+      // // 最初の質問を自動的に取得
+      // const initializeChat = async () => {
+      //   setIsLoading(true);
+      //   try {
+      //     const initialMessage = `こんにちは。「${learningTopic}」について復習したいです。よろしくお願いします。`;
+      //     const botResponse = await reviewChatService.sendMessage(initialMessage, abortController.signal);
+      //
+      //     // リクエストがキャンセルされていたら処理しない
+      //     if (abortController.signal.aborted) {
+      //       return;
+      //     }
+      //
+      //     const botMessage: Message = {
+      //       id: Date.now().toString(),
+      //       content: botResponse,
+      //       sender: 'bot',
+      //       timestamp: new Date(),
+      //     };
+      //     setMessages([botMessage]);
+      //     setHasInitialized(true); // 初期化完了フラグを設定
+      //   } catch (error) {
+      //     // AbortErrorの場合はログを出さない（意図的なキャンセル）
+      //     if (error instanceof Error && error.name === 'AbortError') {
+      //       console.log('Chat initialization was cancelled');
+      //     } else {
+      //       console.error('Failed to initialize chat:', error);
+      //     }
+      //   } finally {
+      //     setIsLoading(false);
+      //     abortControllerRef.current = null;
+      //   }
+      // };
+      //
+      // initializeChat();
     }
 
     // クリーンアップ関数：コンポーネントアンマウント時にリクエストをキャンセル
