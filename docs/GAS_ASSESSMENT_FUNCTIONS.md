@@ -74,15 +74,15 @@ function createAssessmentSheet(userEmail, sessionId, problemData) {
         row++;
       }
       
-      if (problemData.expected_accuracy !== null && problemData.expected_accuracy !== undefined) {
+      if (problemData.predicted_accuracy !== null && problemData.predicted_accuracy !== undefined) {
         sheet.getRange(`A${row}`).setValue('予想正答率');
-        sheet.getRange(`B${row}`).setValue(problemData.expected_accuracy + '%');
+        sheet.getRange(`B${row}`).setValue(problemData.predicted_accuracy + '%');
         row++;
       }
       
-      if (problemData.expected_answer_time !== null && problemData.expected_answer_time !== undefined) {
+      if (problemData.predicted_answerTime !== null && problemData.predicted_answerTime !== undefined) {
         sheet.getRange(`A${row}`).setValue('予想解答時間');
-        sheet.getRange(`B${row}`).setValue(problemData.expected_answer_time + '秒');
+        sheet.getRange(`B${row}`).setValue(problemData.predicted_answerTime + '秒');
         row++;
       }
       

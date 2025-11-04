@@ -311,10 +311,10 @@ const QuizCreationPage: React.FC = () => {
       const finalCodeWithBlanks = creationMode === 'auto' ? generatedQuiz?.codeWithBlanks : codeWithBlanks;
 
       // ProblemContextから作問課題データを取得
-      const expectedAccuracy = problemData.expectedAccuracy;
-      const expectedAnswerTime = problemData.expectedAnswerTime;
+      const predicted_accuracy = problemData.predicted_accuracy;
+      const predicted_answerTime = problemData.predicted_answerTime;
 
-      // 問題データを準備（title、expected_accuracy、expected_answer_time を含める）
+      // 問題データを準備（title、predicted_accuracy、predicted_answerTime を含める）
       const problemToSave: SaveProblemData = {
         problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
         code: problemData.code,
@@ -324,8 +324,8 @@ const QuizCreationPage: React.FC = () => {
         choices: finalChoices || [],
         explanation: finalExplanation,
         title: title,
-        expected_accuracy: expectedAccuracy,
-        expected_answer_time: expectedAnswerTime,
+        predicted_accuracy: predicted_accuracy,
+        predicted_answerTime: predicted_answerTime,
       };
 
       console.log('=== 保存データ準備完了 ===');
@@ -379,8 +379,8 @@ const QuizCreationPage: React.FC = () => {
                 code: problemToSave.code,
                 language: problemToSave.language,
                 learning_topic: problemToSave.learning_topic,
-                expected_accuracy: problemToSave.expected_accuracy,
-                expected_answer_time: problemToSave.expected_answer_time,
+                predicted_accuracy: problemToSave.predicted_accuracy,
+                predicted_answerTime: problemToSave.predicted_answerTime,
                 choices: problemToSave.choices
               }
             })

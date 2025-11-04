@@ -48,10 +48,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     setProblemData({
       problem: data.problemText || '',
       code: data.code || data.answerText || '',
-      language: 'data_analysis', // 新しいカテゴリ
-      learningTopic: 'data_analysis', // データ整理固定
-      expectedAccuracy: null,
-      expectedAnswerTime: null,
+      language: 'data_analysis',
+      learningTopic: 'data_analysis',
+      predicted_accuracy: null,
+      predicted_answerTime: null,
     });
     
     // 親コンポーネント（HomePage）にもデータ変更を通知

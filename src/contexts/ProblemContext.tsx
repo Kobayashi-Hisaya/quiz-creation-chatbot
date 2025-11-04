@@ -9,8 +9,8 @@ interface ProblemData {
   code: string;
   language: string;
   learningTopic: LearningTopic;
-  expectedAccuracy: number | null; // 予想正答率（0-100%）
-  expectedAnswerTime: number | null; // 予想解答時間（秒）
+  predicted_accuracy: number | null; // 予想正答率（0-100%）
+  predicted_answerTime: number | null; // 予想解答時間（秒）
 }
 
 interface ProblemContextType {
@@ -61,8 +61,8 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
     code: '',
     language: 'typescript',
     learningTopic: '制御構造',
-    expectedAccuracy: null,
-    expectedAnswerTime: null,
+    predicted_accuracy: null,
+    predicted_answerTime: null,
   };
 
   const [problemData, setProblemData] = useState<ProblemData>(initialData);
@@ -173,8 +173,8 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [topicSelectionKey]);
 
   // 作問課題データを更新する関数
-  const setAssignmentData = (accuracy: number | null, answerTime: number | null) => {
-    const updatedData = { ...problemData, expectedAccuracy: accuracy, expectedAnswerTime: answerTime };
+  const setAssignmentData = (predicted_accuracy: number | null, predicted_answerTime: number | null) => {
+    const updatedData = { ...problemData, predicted_accuracy: predicted_accuracy, predicted_answerTime: predicted_answerTime };
     setProblemData(updatedData);
   };
 
