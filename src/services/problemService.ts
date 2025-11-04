@@ -80,22 +80,30 @@ export const saveProblem = async (
     let problem: Problem | null = null;
     let problemError: any = null;
     try {
-      console.log('[problemService] Supabase insert 開始');
-      // タイムアウトを120秒に延長（安全策として残す）
-      const insertResult = await Promise.race([
-        supabase
-          .from('problems')
-          .insert([insertData])
-          .select()
-          .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました (120秒)')), 120000))
-      ]) as { data: Problem | null, error: any };
+      console.log('[problemService] Supabase insert 開始', new Date().toISOString());
+      
+      // タイムアウトなしで直接実行（Supabaseのデフォルトタイムアウトに任せる）
+      const insertResult = await supabase
+        .from('problems')
+        .insert([insertData])
+        .select()
+        .single();
       
       problem = insertResult.data;
       problemError = insertResult.error;
-      console.log('[problemService] Supabase insert 完了');
+      console.log('[problemService] Supabase insert 完了', new Date().toISOString());
+      console.log('[problemService] Insert結果:', { 
+        hasData: !!problem, 
+        hasError: !!problemError,
+        errorCode: problemError?.code,
+        errorMessage: problemError?.message 
+      });
     } catch (error) {
-      console.error('[problemService] Supabase insert エラー:', error);
+      console.error('[problemService] Supabase insert 例外エラー:', error);
+      console.error('[problemService] エラー詳細:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       problemError = error;
       problem = null;
     }
@@ -117,24 +125,34 @@ export const saveProblem = async (
       messages: history.messages,
     }));
 
-    console.log('[problemService] チャット履歴挿入データ:', chatHistoryInserts);
+    console.log('[problemService] チャット履歴挿入データ件数:', chatHistoryInserts.length);
+    console.log('[problemService] チャット履歴サイズ概算:', JSON.stringify(chatHistoryInserts).length, 'bytes');
 
     let chatError: any = null;
     try {
-      // タイムアウトを90秒に延長
-      const chatResult = await Promise.race([
-        supabase
-          .from('chat_histories')
-          .insert(chatHistoryInserts),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('チャット履歴挿入がタイムアウトしました (90秒)')), 90000))
-      ]) as { error: any };
+      console.log('[problemService] チャット履歴 insert 開始', new Date().toISOString());
+      
+      // タイムアウトなしで直接実行
+      const chatResult = await supabase
+        .from('chat_histories')
+        .insert(chatHistoryInserts);
+      
       chatError = chatResult.error;
+      console.log('[problemService] チャット履歴 insert 完了', new Date().toISOString());
     } catch (error) {
-      console.error('[problemService] チャット履歴挿入エラー:', error);
+      console.error('[problemService] チャット履歴挿入例外エラー:', error);
+      console.error('[problemService] エラー詳細:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       chatError = error;
     }
 
-    console.log('[problemService] チャット履歴保存結果:', { chatError });
+    console.log('[problemService] チャット履歴保存結果:', { 
+      hasError: !!chatError,
+      errorCode: chatError?.code,
+      errorMessage: chatError?.message 
+    });
 
     if (chatError) {
       console.error('[problemService] Chat history save error:', chatError);

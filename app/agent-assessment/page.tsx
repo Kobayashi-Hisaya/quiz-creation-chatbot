@@ -173,32 +173,62 @@ export default function AgentAssessmentPage() {
 
       console.log('[AgentAssessment] 診断開始: /api/chat にリクエスト送信');
       
-      // プロンプトを構築
-      let systemPrompt = 'あなたは教育用の問題作成アシスタントです。以下の問題を分析し、改善提案をしてください。';
+      // システムプロンプトを構築
+      const systemPrompt = `##命令
+あなたは，情報系の大学に勤務している大学教員です．今から，作問学習において指導学生が作成した，プログラミングに関する作問（問題文・解答・解説）を提示します．その作問を診断してください．その後，診断結果に基づいたフィードバックをください．診断の詳細は以下にあるプロセスに則ってください．
+
+##プロセス
+入力を受け取り、以下の手順に従って、学生に対する自然な応答を生成しなさい． 「#診断項目」「#診断規則」に則った診断をしなさい。
+
+1 問題データを読取り、以下の【#診断項目】に沿って作問を診断しなさい
+2. 以下の2つの出力を生成しなさい、出力はmarkdown形式で整形しなさい。 
+  a. 診断結果：各診断項目における診断結果 
+  b. フィードバック：学生が今後どのように修正すればいいか、今後の指針を提示してください。 
+
+##診断項目：診断基準（何を満たすべきか？）
+Ⅰ. 誤字：作問中に誤字（同音異義語の変換ミス）がない
+Ⅱ. 脱字：作問中に脱字（文字の不足）がない
+Ⅲ. 衍字：作問中に衍字（余分な文字）がない
+Ⅳ. 用語の統一：作問中で用語の表記ゆれがない。呼称が一貫している。
+
+##診断規則
+Ⅰ~Ⅳでは、複数の誤りを検出した場合は、全ての改善点を漏れなく指摘すること。指摘漏れがないように、診断基準ごとに必ず再チェックをしなさい。
+改善点を指摘する場合は，必ず根拠を併せて述べること。
+指摘の際は、【具体的な指摘箇所】と【修正案を提示】しなさい。
+例：問題文〇行目の『△△』を『✖✖』に変更してください
+　　解答〇〇行目の『△△』の部分に余分な文字が入っています
+　　解説文〇行目の『△△』が誤字です。『✖』を追加してください`;
+
+      // 問題データを構築
+      let problemContent = `【問題文】\n${sessionData?.problemData?.problem_text || 'なし'}\n\n`;
       
-      if (spreadsheetData) {
-        systemPrompt += '\n\n【問題データ（スプレッドシート）】\n';
-        if (spreadsheetData.sheets && spreadsheetData.sheets.length > 0) {
-          const firstSheet = spreadsheetData.sheets[0];
-          if (firstSheet.tableData) {
-            systemPrompt += '以下は問題の詳細情報です：\n';
-            firstSheet.tableData.slice(0, 15).forEach((row: any[], index: number) => {
-              if (Array.isArray(row)) {
-                const rowText = row.join(' | ');
-                if (rowText.trim()) {
-                  systemPrompt += `行${index + 1}: ${rowText}\n`;
-                }
+      if (sessionData?.problemData?.choices && sessionData.problemData.choices.length > 0) {
+        problemContent += `【選択肢】\n${sessionData.problemData.choices.map((c: any, i: number) => `${String.fromCharCode(65 + i)}. ${c.text}${c.isCorrect ? ' (正解)' : ''}`).join('\n')}\n\n`;
+      }
+      
+      problemContent += `【解説】\n${sessionData?.problemData?.explanation || 'なし'}`;
+      
+      // スプレッドシートデータがある場合は追加
+      if (spreadsheetData && spreadsheetData.sheets && spreadsheetData.sheets.length > 0) {
+        const firstSheet = spreadsheetData.sheets[0];
+        if (firstSheet.tableData) {
+          problemContent += '\n\n【スプレッドシートデータ】\n';
+          firstSheet.tableData.slice(0, 15).forEach((row: any[], index: number) => {
+            if (Array.isArray(row)) {
+              const rowText = row.join(' | ');
+              if (rowText.trim()) {
+                problemContent += `行${index + 1}: ${rowText}\n`;
               }
-            });
-          }
+            }
+          });
         }
       }
 
-      // LangChainのメッセージ形式に変換
+      // メッセージを構築
       const messages = [
         {
           role: 'user',
-          content: `以下の問題について、医学的な正確性、わかりやすさ、難易度のバランスなどの観点から分析し、改善提案をしてください。\n\n【問題テキスト】\n${sessionData?.problemData?.problem_text || 'なし'}\n\n【選択肢】\n${sessionData?.problemData?.choices?.map((c: any, i: number) => `${String.fromCharCode(65 + i)}. ${c.text}${c.isCorrect ? ' (正解)' : ''}`).join('\n') || 'なし'}\n\n【解説】\n${sessionData?.problemData?.explanation || 'なし'}`
+          content: problemContent
         }
       ];
 
@@ -210,8 +240,10 @@ export default function AgentAssessmentPage() {
         body: JSON.stringify({
           messages: messages,
           systemPrompt: systemPrompt,
-          model: 'gpt-4o',
-          temperature: 0.7
+          model: 'gpt-4o-mini',
+          temperature: 1.0,
+          max_tokens: 10000,
+          reasoning_effort: 'high'
         }),
       });
 

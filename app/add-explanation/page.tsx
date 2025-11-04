@@ -184,63 +184,52 @@ const AddExplanationPage: React.FC = () => {
         },
       ];
 
-      // 【ステップ2】Supabaseに保存（高速化のため先に保存）
-      console.log('[add-explanation] DB保存開始...');
-      const result = await saveProblem(saveData, chatHistories, {
-        id: user!.id,
-        email: user!.email || undefined,
-      });
-      console.log('[add-explanation] DB保存完了:', result);
+      // 【ステップ2】スプシ①をコピーしてスプシ②を作成（オプション）
+      let assessmentSpreadsheetId: string | null = null;
+      
+      if (user?.email && spreadsheetId) {
+        try {
+          console.log('[add-explanation] スプシ①をコピーしてスプシ②を作成中...', spreadsheetId);
+          
+          const { gasClientService } = await import('@/services/gasClientService');
+          const copyResult = await gasClientService.copySpreadsheetForAssessment(
+            spreadsheetId, // スプシ①のID
+            user.email,
+            `assessment-${Date.now()}`
+          );
 
-      if (result.success) {
-        // 【ステップ3】スプシ①をコピーしてスプシ②を作成（DB保存後にバックグラウンドで実行）
-        let assessmentSpreadsheetId: string | null = null;
-        
-        if (user?.email && spreadsheetId) {
-          try {
-            console.log('[add-explanation] スプシ①をコピーしてスプシ②を作成中...', spreadsheetId);
-            
-            const { gasClientService } = await import('@/services/gasClientService');
-            const copyResult = await gasClientService.copySpreadsheetForAssessment(
-              spreadsheetId, // スプシ①のID
-              user.email,
-              `assessment-${Date.now()}`
-            );
-
-            if (copyResult && copyResult.spreadsheetId) {
-              assessmentSpreadsheetId = copyResult.spreadsheetId; // スプシ②のID
-              console.log('[add-explanation] スプシ②作成完了:', assessmentSpreadsheetId);
-              console.log('スプシ②のURL:', copyResult.spreadsheetUrl);
-            } else {
-              console.error('[add-explanation] スプレッドシートのコピーに失敗');
-            }
-          } catch (error) {
-            console.error('[add-explanation] スプレッドシートコピーエラー:', error);
-            // コピー失敗してもページ遷移は続行（診断機能が使えないだけ）
+          if (copyResult && copyResult.spreadsheetId) {
+            assessmentSpreadsheetId = copyResult.spreadsheetId; // スプシ②のID
+            console.log('[add-explanation] スプシ②作成完了:', assessmentSpreadsheetId);
+            console.log('スプシ②のURL:', copyResult.spreadsheetUrl);
+          } else {
+            console.error('[add-explanation] スプレッドシートのコピーに失敗');
           }
+        } catch (error) {
+          console.error('[add-explanation] スプレッドシートコピーエラー:', error);
+          // コピー失敗してもページ遷移は続行（診断機能が使えないだけ）
         }
-
-        // SessionStorage に問題データを保存
-        const sessionData = {
-          problemData: {
-            ...saveData,
-            assessment_spreadsheet_id: assessmentSpreadsheetId // スプシ②のIDを保存（nullの場合もあり）
-          },
-          chatHistories: chatHistories,
-        };
-
-        sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
-
-        // sessionStorageをクリア
-        sessionStorage.removeItem('currentSpreadsheetId');
-        sessionStorage.removeItem('problemText');
-        sessionStorage.removeItem('answerText');
-
-        // agent-assessment ページに遷移
-        router.push('/agent-assessment');
-      } else {
-        throw new Error(result.error || '保存に失敗しました');
       }
+
+      // 【ステップ3】SessionStorage に問題データを保存（DB保存は/agent-assessmentで実行）
+      const sessionData = {
+        problemData: {
+          ...saveData,
+          assessment_spreadsheet_id: assessmentSpreadsheetId // スプシ②のIDを保存（nullの場合もあり）
+        },
+        chatHistories: chatHistories,
+      };
+
+      sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
+      console.log('[add-explanation] SessionStorageに保存完了。/agent-assessmentに遷移します');
+
+      // sessionStorageをクリア
+      sessionStorage.removeItem('currentSpreadsheetId');
+      sessionStorage.removeItem('problemText');
+      sessionStorage.removeItem('answerText');
+
+      // agent-assessment ページに遷移（DB保存はここで行う）
+      router.push('/agent-assessment');
     } catch (error) {
       console.error('保存エラー:', error);
       const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました';
