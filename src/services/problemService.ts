@@ -13,8 +13,8 @@ export interface SaveProblemData {
   choices: QuizChoice[] | null;
   explanation: string | null;
   title: string | null;
-  expected_accuracy?: number | null;
-  expected_answer_time?: number | null;
+  predicted_accuracy?: number | null;
+  predicted_answerTime?: number | null;
   // データ整理問題用フィールド
   spreadsheet_url?: string | null;
   spreadsheet_id?: string | null;
@@ -76,7 +76,8 @@ export const saveProblem = async (
     };
     console.log('[problemService] 挿入データ:', insertData);
 
-    let problem, problemError;
+    let problem: Problem | null = null;
+    let problemError: any = null;
     try {
       console.log('[problemService] Supabase insert 開始');
       const insertResult = await Promise.race([
@@ -85,8 +86,8 @@ export const saveProblem = async (
           .insert([insertData])
           .select()
           .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 15000))
-      ]) as { data: Problem | null, error: Error | null };
+        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 60000))
+      ]) as { data: Problem | null, error: any };
       
       problem = insertResult.data;
       problemError = insertResult.error;
@@ -116,9 +117,19 @@ export const saveProblem = async (
 
     console.log('[problemService] チャット履歴挿入データ:', chatHistoryInserts);
 
-    const { error: chatError } = await supabase
-      .from('chat_histories')
-      .insert(chatHistoryInserts);
+    let chatError: any = null;
+    try {
+      const chatResult = await Promise.race([
+        supabase
+          .from('chat_histories')
+          .insert(chatHistoryInserts),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('チャット履歴挿入がタイムアウトしました')), 60000))
+      ]) as { error: any };
+      chatError = chatResult.error;
+    } catch (error) {
+      console.error('[problemService] チャット履歴挿入エラー:', error);
+      chatError = error;
+    }
 
     console.log('[problemService] チャット履歴保存結果:', { chatError });
 
@@ -126,7 +137,7 @@ export const saveProblem = async (
       console.error('[problemService] Chat history save error:', chatError);
       return {
         success: false,
-        error: `チャット履歴の保存に失敗しました: ${chatError.message}`,
+        error: `チャット履歴の保存に失敗しました: ${chatError instanceof Error ? chatError.message : String(chatError)}`,
       };
     }
 

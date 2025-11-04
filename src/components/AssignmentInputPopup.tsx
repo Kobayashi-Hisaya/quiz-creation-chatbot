@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface AssignmentInputPopupProps {
   isOpen: boolean;
-  onSubmit: (accuracy: number | null, answerTime: number | null) => void;
+  onSubmit: (predicted_accuracy: number | null, predicted_answerTime: number | null) => void;
   onCancel: () => void;
 }
 
@@ -11,23 +11,23 @@ export const AssignmentInputPopup: React.FC<AssignmentInputPopupProps> = ({
   onSubmit, 
   onCancel 
 }) => {
-  const [selectedAccuracy, setSelectedAccuracy] = useState<number | null>(null);
-  const [answerTime, setAnswerTime] = useState<string>('');
+  const [predicted_accuracy, setPredicted_accuracy] = useState<number | null>(null);
+  const [predicted_answerTime, setPredicted_answerTime] = useState<string>('');
 
   if (!isOpen) return null;
 
   const accuracyOptions = Array.from({ length: 11 }, (_, i) => i * 10);
 
   const handleSubmit = () => {
-    const time = answerTime.trim() ? parseInt(answerTime, 10) : null;
+    const time = predicted_answerTime.trim() ? parseInt(predicted_answerTime, 10) : null;
     
     // バリデーション
-    if (time !== null && (isNaN(time) || time < 0 || time > 600)) {
-      alert('予想解答時間は0～600秒で入力してください');
+    if (time !== null && (isNaN(time) || time < 60 || time > 900)) {
+      alert('予想解答時間は1分～15分（60～900秒）の範囲で選択してください');
       return;
     }
 
-    onSubmit(selectedAccuracy, time);
+    onSubmit(predicted_accuracy, time);
     resetForm();
   };
 
@@ -45,8 +45,8 @@ export const AssignmentInputPopup: React.FC<AssignmentInputPopupProps> = ({
   };
 
   const resetForm = () => {
-    setSelectedAccuracy(null);
-    setAnswerTime('');
+    setPredicted_accuracy(null);
+    setPredicted_answerTime('');
   };
 
   return (
@@ -102,8 +102,8 @@ export const AssignmentInputPopup: React.FC<AssignmentInputPopupProps> = ({
             予想正答率（%）
           </label>
           <select
-            value={selectedAccuracy !== null ? selectedAccuracy : ''}
-            onChange={(e) => setSelectedAccuracy(e.target.value ? parseInt(e.target.value, 10) : null)}
+            value={predicted_accuracy !== null ? predicted_accuracy : ''}
+            onChange={(e) => setPredicted_accuracy(e.target.value ? parseInt(e.target.value, 10) : null)}
             style={{
               width: '100%',
               padding: '12px',
@@ -141,22 +141,11 @@ export const AssignmentInputPopup: React.FC<AssignmentInputPopupProps> = ({
             display: 'block',
             marginBottom: '12px'
           }}>
-            予想解答時間（秒）
+            予想解答時間（分）
           </label>
-          <input
-            type="number"
-            value={answerTime}
-            onChange={(e) => {
-              const value = e.target.value;
-              // 0～600の範囲でのみ入力を許可
-              if (value === '' || (parseInt(value, 10) >= 0 && parseInt(value, 10) <= 600)) {
-                setAnswerTime(value);
-              }
-            }}
-            onKeyPress={handleKeyPress}
-            placeholder="例: 120"
-            min="0"
-            max="600"
+          <select
+            value={predicted_answerTime}
+            onChange={(e) => setPredicted_answerTime(e.target.value)}
             style={{
               width: '100%',
               padding: '12px',
@@ -164,16 +153,24 @@ export const AssignmentInputPopup: React.FC<AssignmentInputPopupProps> = ({
               borderRadius: '6px',
               fontSize: '14px',
               boxSizing: 'border-box',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              cursor: 'pointer'
             }}
-          />
+          >
+            <option value="">-- 選択してください --</option>
+            {Array.from({ length: 15 }, (_, i) => i + 1).map((minute) => (
+              <option key={minute} value={String(minute * 60)}>
+                {minute}分 ({minute * 60}秒)
+              </option>
+            ))}
+          </select>
           <p style={{ 
             fontSize: '12px', 
             color: '#999', 
             marginTop: '8px',
             marginBottom: '0'
           }}>
-            予想解答時間を秒単位で入力してください（0～600秒）
+            予想解答時間を1分～15分の範囲から選択してください
           </p>
         </div>
 

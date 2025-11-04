@@ -19,8 +19,8 @@ export interface Problem {
   choices: QuizChoice[] | null; // JSONB
   explanation: string | null;
   title: string | null;
-  expected_accuracy: number | null; // 予想正答率（0-100%）
-  expected_answer_time: number | null; // 予想解答時間（秒）
+  predicted_accuracy: number | null; // 予想正答率（0-100%）
+  predicted_answerTime: number | null; // 予想解答時間（秒）
   assessment_spreadsheet_id: string | null; // 自動診断用スプレッドシート ID
   // データ整理問題用フィールド
   spreadsheet_url: string | null;

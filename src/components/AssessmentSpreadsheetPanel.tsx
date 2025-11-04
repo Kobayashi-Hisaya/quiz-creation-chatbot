@@ -10,8 +10,8 @@ interface ProblemData {
   choices?: Array<{ id: string; text: string; isCorrect: boolean }> | null;
   explanation?: string | null;
   title?: string | null;
-  expected_accuracy?: number | null;
-  expected_answer_time?: number | null;
+  predicted_accuracy?: number | null;
+  predicted_answerTime?: number | null;
   assessment_spreadsheet_id?: string | null;
 }
 
@@ -64,8 +64,8 @@ export const AssessmentSpreadsheetPanel: React.FC<AssessmentSpreadsheetPanelProp
         })),
         explanation: problemData.explanation,
         title: problemData.title,
-        expectedAccuracy: problemData.expected_accuracy || null,
-        expectedAnswerTime: problemData.expected_answer_time || null,
+        expectedAccuracy: problemData.predicted_accuracy || null,
+        expectedAnswerTime: problemData.predicted_answerTime || null,
       };
 
       // 評価用のスプレッドシートを作成

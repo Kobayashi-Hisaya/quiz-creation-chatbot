@@ -11,8 +11,8 @@ interface CreateAssessmentSheetRequest {
     code?: string | null;
     language?: string | null;
     learning_topic?: string | null;
-    expected_accuracy?: number | null;
-    expected_answer_time?: number | null;
+    predicted_accuracy?: number | null;
+    predicted_answerTime?: number | null;
     choices?: Array<{ id: string; text: string; isCorrect: boolean }> | null;
   };
 }
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
         code: problemData.code,
         language: problemData.language,
         learning_topic: problemData.learning_topic,
-        expected_accuracy: problemData.expected_accuracy,
-        expected_answer_time: problemData.expected_answer_time,
+        predicted_accuracy: problemData.predicted_accuracy,
+        predicted_answerTime: problemData.predicted_answerTime,
         choices: problemData.choices
       }
     };

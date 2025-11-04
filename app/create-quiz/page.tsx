@@ -112,8 +112,18 @@ const HomePage: React.FC = () => {
     setShowAssignmentPopup(true);
   };
 
-  const handleAssignmentSubmit = (accuracy: number | null, answerTime: number | null) => {
-    setAssignmentData(accuracy, answerTime);
+  const handleAssignmentSubmit = (predicted_accuracy: number | null, predicted_answerTime: number | null) => {
+    console.log('=== 作問課題データを保存 ===');
+    console.log('predicted_accuracy:', predicted_accuracy);
+    console.log('predicted_answerTime:', predicted_answerTime);
+    
+    // ProblemContext に保存
+    setAssignmentData(predicted_accuracy, predicted_answerTime);
+    
+    // sessionStorage にも保存（ページ遷移時の Context 初期化対策）
+    sessionStorage.setItem('predicted_accuracy', predicted_accuracy !== null ? String(predicted_accuracy) : '');
+    sessionStorage.setItem('predicted_answerTime', predicted_answerTime !== null ? String(predicted_answerTime) : '');
+    
     setShowAssignmentPopup(false);
   };
 
