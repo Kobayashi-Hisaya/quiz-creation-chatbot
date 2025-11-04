@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-5" } = body;
+    const { messages, model = "gpt-5-chat-latest" } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
