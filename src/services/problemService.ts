@@ -27,7 +27,7 @@ export interface SaveProblemData {
 }
 
 export interface ChatHistoryInput {
-  chat_type: 'creation' | 'explanation' | 'review';
+  chat_type: 'creation' | 'explanation' | 'review' | 'assessment';
   messages: ChatMessage[];
 }
 

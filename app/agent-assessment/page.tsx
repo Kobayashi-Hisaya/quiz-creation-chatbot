@@ -13,6 +13,7 @@ import { reviewChatService } from '@/services/reviewChatService';
 import { chatService } from '@/services/chatService';
 import { assessmentService } from '@/services/assessmentService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
+import type { QuizChoice } from '@/types/quiz';
 
 interface ProblemDataToSave extends SaveProblemData {
   title: string;
@@ -43,7 +44,7 @@ export default function AgentAssessmentPage() {
   const [editedProblemText, setEditedProblemText] = useState<string>('');
   const [editedCode, setEditedCode] = useState<string>('');
   const [editedExplanation, setEditedExplanation] = useState<string>('');
-  const [editedChoices, setEditedChoices] = useState<any[]>([]);
+  const [editedChoices, setEditedChoices] = useState<QuizChoice[]>([]);
 
   // Split sizes の管理（localStorage に保存）
   const VERTICAL_SPLIT_KEY = 'agent-assessment-vertical-split';
@@ -250,6 +251,44 @@ export default function AgentAssessmentPage() {
 
       setDiagnosisResult(diagnosisText);
       console.log('[AgentAssessment] 診断完了');
+
+      // 診断履歴をsessionDataに追加
+      if (sessionData) {
+        const newMessage = [
+          { role: 'user' as const, content: '診断を実行してください。', timestamp: new Date().toISOString() },
+          { role: 'assistant' as const, content: diagnosisText, timestamp: new Date().toISOString() }
+        ];
+
+        // 既存のassessment履歴を探す
+        const existingAssessmentIndex = sessionData.chatHistories.findIndex(
+          (history) => history.chat_type === 'assessment'
+        );
+
+        if (existingAssessmentIndex >= 0) {
+          // 既存の履歴にメッセージを追加
+          const updatedHistories = [...sessionData.chatHistories];
+          updatedHistories[existingAssessmentIndex] = {
+            ...updatedHistories[existingAssessmentIndex],
+            messages: [...updatedHistories[existingAssessmentIndex].messages, ...newMessage]
+          };
+          setSessionData({
+            ...sessionData,
+            chatHistories: updatedHistories
+          });
+          console.log('[AgentAssessment] 既存の診断履歴に追加しました');
+        } else {
+          // 新規に診断履歴を作成
+          const newHistory = {
+            chat_type: 'assessment' as const,
+            messages: newMessage
+          };
+          setSessionData({
+            ...sessionData,
+            chatHistories: [...sessionData.chatHistories, newHistory]
+          });
+          console.log('[AgentAssessment] 新規診断履歴を作成しました');
+        }
+      }
     } catch (err) {
       console.error('[AgentAssessment] 診断エラー:', err);
       const errorMessage = err instanceof Error ? err.message : '診断処理中にエラーが発生しました。';

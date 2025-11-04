@@ -21,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   console.log('[AuthContext] 初期化開始');
 
@@ -97,21 +96,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('[AuthContext] Tab became visible, refreshing session...');
-        try {
-          const { data, error } = await supabase.auth.refreshSession();
-          if (error) {
-            console.error('[AuthContext] Session refresh error:', error);
-          } else {
-            console.log('[AuthContext] Session refreshed successfully');
-            // セッション更新成功時に状態を更新
-            if (data.session) {
-              setSession(data.session);
-              setUser(data.session.user);
+        console.log('[AuthContext] Tab became visible, checking session...');
+
+        // まず現在のセッションを確認
+        const { data: sessionData } = await supabase.auth.getSession();
+
+        // セッションが存在する場合のみリフレッシュを試みる
+        if (sessionData.session) {
+          console.log('[AuthContext] Active session found, refreshing...');
+          try {
+            const { data, error } = await supabase.auth.refreshSession();
+            if (error) {
+              console.error('[AuthContext] Session refresh error:', error);
+            } else {
+              console.log('[AuthContext] Session refreshed successfully');
+              // セッション更新成功時に状態を更新
+              if (data.session) {
+                setSession(data.session);
+                setUser(data.session.user);
+              }
             }
+          } catch (err) {
+            console.error('[AuthContext] Failed to refresh session:', err);
           }
-        } catch (err) {
-          console.error('[AuthContext] Failed to refresh session:', err);
+        } else {
+          console.log('[AuthContext] No active session, skipping refresh');
         }
       }
     };
@@ -243,26 +252,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     isAdmin,
   };
-
-  // エラーが発生した場合は表示
-  if (error) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        flexDirection: 'column',
-        padding: '20px'
-      }}>
-        <h2 style={{ color: '#e74c3c' }}>認証エラー</h2>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>
-          再読み込み
-        </button>
-      </div>
-    );
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
