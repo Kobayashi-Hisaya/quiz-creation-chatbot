@@ -35,7 +35,7 @@ const getInitialSplitSizes = (key: string, defaultSizes: number[]): number[] => 
 const AddExplanationPage: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const { problemData, spreadsheetState, clearTopicSelection } = useProblem();
+  const { problemData, spreadsheetState, clearTopicSelection, clearPersistedSpreadsheet } = useProblem();
 
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [problemText, setProblemText] = useState<string>('');
@@ -232,6 +232,9 @@ const AddExplanationPage: React.FC = () => {
 
         // 学習項目選択状態をクリア（次回作成時に再度TopicSelectorを表示）
         clearTopicSelection();
+
+        // スプレッドシート状態をクリア（次回作成時に新しいスプレッドシートを作成）
+        clearPersistedSpreadsheet();
 
         // dashboardに遷移
         router.push('/dashboard');
