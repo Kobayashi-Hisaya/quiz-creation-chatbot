@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const spreadsheetId = params.id;
+    const { id } = await params;
+    const spreadsheetId = id;
 
     // 環境変数から認証情報を取得
     const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -57,7 +58,7 @@ export async function GET(
   }
 }
 
-function getCellRange(sheet: any, startCell: string, endCell: string): string {
+function getCellRange(sheet: GoogleSpreadsheetWorksheet, startCell: string, endCell: string): string {
   const startPos = parseA1Notation(startCell);
   const endPos = parseA1Notation(endCell);
   
@@ -79,7 +80,7 @@ function getCellRange(sheet: any, startCell: string, endCell: string): string {
   return lines.join('\n');
 }
 
-function getTableData(sheet: any, startCell: string, endCell: string): string[][] {
+function getTableData(sheet: GoogleSpreadsheetWorksheet, startCell: string, endCell: string): string[][] {
   const startPos = parseA1Notation(startCell);
   const endPos = parseA1Notation(endCell);
   

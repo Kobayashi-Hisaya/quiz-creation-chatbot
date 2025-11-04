@@ -31,7 +31,7 @@ export async function GET() {
     console.log('GAS Response text:', responseText.substring(0, 1000));
 
     // レスポンス分析
-    let isHtml = responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html');
+    const isHtml = responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html');
     let isJson = false;
     let parsedJson = null;
 
@@ -39,7 +39,7 @@ export async function GET() {
       try {
         parsedJson = JSON.parse(responseText);
         isJson = true;
-      } catch (e) {
+      } catch {
         // JSONパース失敗
       }
     }
