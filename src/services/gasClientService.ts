@@ -9,7 +9,7 @@ export interface SheetData {
   problemText: string;   // A2セルの値
   answerText: string;    // A5セルの値
   quizData: QuizCellData[];  // 8行目以降のデータ（A～Z列）
-  tableData: any[][];    // シートの全データ（後方互換用）
+  tableData: (string | number | boolean)[][];    // シートの全データ（後方互換用）
   startRow: number;      // データ範囲の開始行（1始まり）
   startColumn: number;   // データ範囲の開始列（1始まり）
   lastRow: number;

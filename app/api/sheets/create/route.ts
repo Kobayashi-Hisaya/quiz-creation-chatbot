@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
 interface CreateSheetRequest {
@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
     console.log('Updating sharing settings...');
     await doc.share('', {
       role: 'writer',
-      type: 'anyone',
     });
     console.log('Sharing settings updated');
 
@@ -130,7 +129,7 @@ async function applyTemplate(doc: GoogleSpreadsheet): Promise<void> {
   await applyFormatting(sheet);
 }
 
-async function applyFormatting(sheet: any): Promise<void> {
+async function applyFormatting(sheet: GoogleSpreadsheetWorksheet): Promise<void> {
   // ヘッダー行のフォーマット（太字、背景色）
   await sheet.loadCells('A1:D1');
   const headerCell = sheet.getCellByA1('A1');

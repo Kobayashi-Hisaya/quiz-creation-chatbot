@@ -1,4 +1,4 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet, GoogleSpreadsheetCell } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
 export interface QuizTemplateData {
@@ -183,10 +183,10 @@ class SheetsService {
 
       return {
         learningTopic: sheet.getCellByA1('A5').value?.toString() || '',
-        problemText: this.getCellRange(sheet, 'A8:D15'),
+        problemText: await this.getCellRange(sheet, 'A8:D15'),
         language: sheet.getCellByA1('A18').value?.toString() || '',
-        sourceCode: this.getCellRange(sheet, 'A21:D40'),
-        tableData: this.getTableData(sheet, 'A43:D50'),
+        sourceCode: await this.getCellRange(sheet, 'A21:D40'),
+        tableData: await this.getTableData(sheet, 'A43:D50'),
       };
     } catch (error) {
       console.error('Failed to get template data:', error);
@@ -197,10 +197,10 @@ class SheetsService {
   /**
    * セル範囲のテキストを結合して取得
    */
-  private getCellRange(sheet: any, range: string): string {
-    const cells = sheet.getCellsInRange(range);
+  private async getCellRange(sheet: GoogleSpreadsheetWorksheet, range: string): Promise<string> {
+    const cells = await sheet.getCellsInRange(range);
     return cells
-      .map((row: any[]) => row.map(cell => cell.value || '').join(' '))
+      .map((row: GoogleSpreadsheetCell[]) => row.map(cell => cell.value || '').join(' '))
       .filter((line: string) => line.trim() !== '')
       .join('\n');
   }
@@ -208,11 +208,11 @@ class SheetsService {
   /**
    * 表データを2次元配列として取得
    */
-  private getTableData(sheet: any, range: string): string[][] {
-    const cells = sheet.getCellsInRange(range);
-    return cells.map((row: any[]) => 
+  private async getTableData(sheet: GoogleSpreadsheetWorksheet, range: string): Promise<string[][]> {
+    const cells = await sheet.getCellsInRange(range);
+    return cells.map((row: GoogleSpreadsheetCell[]) =>
       row.map(cell => cell.value?.toString() || '')
-    ).filter((row: string[]) => 
+    ).filter((row: string[]) =>
       row.some(cell => cell.trim() !== '')
     );
   }
@@ -235,7 +235,6 @@ class SheetsService {
       // 誰でも編集可能に設定（開発用）
       await this.doc.share('', {
         role: 'writer',
-        type: 'anyone',
       });
     } catch (error) {
       console.error('Failed to update sharing settings:', error);

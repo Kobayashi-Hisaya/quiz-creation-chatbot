@@ -41,7 +41,7 @@ export async function POST() {
     console.log('GAS Response text:', responseText);
 
     // レスポンス分析
-    let isHtml = responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html');
+    const isHtml = responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html');
     let isJson = false;
     let parsedJson = null;
     let error = null;
@@ -51,7 +51,7 @@ export async function POST() {
         parsedJson = JSON.parse(responseText);
         isJson = true;
       } catch (e) {
-        error = `JSON parse error: ${e.message}`;
+        error = `JSON parse error: ${e instanceof Error ? e.message : 'Unknown error'}`;
       }
     }
 
