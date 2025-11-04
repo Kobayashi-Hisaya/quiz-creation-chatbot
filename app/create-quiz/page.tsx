@@ -39,18 +39,37 @@ const HomePage: React.FC = () => {
   const [isDataRestored, setIsDataRestored] = useState(false);
   const [restorationAttempted, setRestorationAttempted] = useState(false);
   const [hasShownAssignmentPopup, setHasShownAssignmentPopup] = useState(false); // ポップアップを1回のみ表示するフラグ
+  const [hasAssignmentData, setHasAssignmentData] = useState(false); // 作問課題データが既に存在するかのフラグ
 
   // Split sizes (percent).
   const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
-  // ページ初期化時のログ出力のみ（作問課題ポップアップはスプレッドシート作成後に表示）
+  // ページ初期化時に作問課題データを復元
   useEffect(() => {
     console.log('=== create-quiz ページ初期化 ===');
     console.log('hasTopicBeenSelected:', hasTopicBeenSelected);
     console.log('learningTopic:', problemData.learningTopic);
     console.log('predicted_accuracy:', problemData.predicted_accuracy);
     console.log('predicted_answerTime:', problemData.predicted_answerTime);
-  }, [hasTopicBeenSelected, problemData.learningTopic, problemData.predicted_accuracy, problemData.predicted_answerTime]);
+
+    // SessionStorageから作問課題データを復元
+    const storedAccuracy = sessionStorage.getItem('predicted_accuracy');
+    const storedAnswerTime = sessionStorage.getItem('predicted_answerTime');
+
+    if (storedAccuracy || storedAnswerTime) {
+      const accuracy = storedAccuracy ? parseInt(storedAccuracy, 10) : null;
+      const answerTime = storedAnswerTime ? parseInt(storedAnswerTime, 10) : null;
+      
+      console.log('[create-quiz] 作問課題データを復元:', { accuracy, answerTime });
+      
+      // ProblemContextに復元（まだ設定されていない場合のみ）
+      if (problemData.predicted_accuracy === null && problemData.predicted_answerTime === null) {
+        setAssignmentData(accuracy, answerTime);
+      }
+      
+      setHasAssignmentData(true); // データがあることをマーク
+    }
+  }, [hasTopicBeenSelected, problemData.learningTopic, problemData.predicted_accuracy, problemData.predicted_answerTime, setAssignmentData]);
 
   // TopicSelectorは review-learning-topic ページで表示されるため、ここでは表示しない
   // useEffect(() => {
@@ -86,21 +105,24 @@ const HomePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restorationAttempted, isDataRestored, spreadsheetState?.spreadsheetId, currentSpreadsheetData]);
 
-  // スプレッドシートデータが取得できた時に作問課題ポップアップを表示（1回のみ）
+  // スプレッドシートデータが取得できた時に作問課題ポップアップを表示（1回のみ、既にデータがある場合はスキップ）
   useEffect(() => {
     if (
       currentSpreadsheetData &&
       hasTopicBeenSelected &&
       problemData.predicted_accuracy === null &&
       problemData.predicted_answerTime === null &&
-      !hasShownAssignmentPopup
+      !hasShownAssignmentPopup &&
+      !hasAssignmentData // 既にデータがある場合は表示しない
     ) {
       console.log('=== スプレッドシートデータ取得完了 ===');
       console.log('作問課題ポップアップを表示します');
       setShowAssignmentPopup(true);
       setHasShownAssignmentPopup(true); // フラグを立てて2回目以降は表示しない
+    } else if (hasAssignmentData) {
+      console.log('[create-quiz] 作問課題データが既に存在するため、ポップアップをスキップします');
     }
-  }, [currentSpreadsheetData, hasTopicBeenSelected, problemData.predicted_accuracy, problemData.predicted_answerTime, hasShownAssignmentPopup]);
+  }, [currentSpreadsheetData, hasTopicBeenSelected, problemData.predicted_accuracy, problemData.predicted_answerTime, hasShownAssignmentPopup, hasAssignmentData]);
 
   const handleTopicSelect = (topic: LearningTopic) => {
     setLearningTopic(topic);

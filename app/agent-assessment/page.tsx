@@ -5,8 +5,12 @@ import { useRouter } from 'next/navigation';
 import Split from 'react-split';
 import '@/styles/split.css';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProblem } from '@/contexts/ProblemContext';
 import { saveProblem } from '@/services/problemService';
 import type { SaveProblemData, ChatHistoryInput } from '@/services/problemService';
+import { explanationChatService } from '@/services/explanationChatService';
+import { reviewChatService } from '@/services/reviewChatService';
+import { chatService } from '@/services/chatService';
 
 interface ProblemDataToSave extends SaveProblemData {
   title: string;
@@ -20,9 +24,12 @@ interface SessionData {
 export default function AgentAssessmentPage() {
   const router = useRouter();
   const { user } = useAuth();
+
+  const { clearTopicSelection, clearPersistedSpreadsheet } = useProblem();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [learningTopic, setLearningTopic] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [diagnosisResult, setDiagnosisResult] = useState<string | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
@@ -134,6 +141,11 @@ export default function AgentAssessmentPage() {
       const data: SessionData = JSON.parse(stored);
       setSessionData(data);
       console.log('[AgentAssessment] 問題データ取得:', data);
+      
+      // 学習項目を取得（チャット履歴削除用）
+      const storedLearningTopic = sessionStorage.getItem('learningTopic') || data.problemData.learning_topic || '';
+      setLearningTopic(storedLearningTopic);
+      console.log('[AgentAssessment] 学習項目:', storedLearningTopic);
       
       // 編集フィールドを初期化
       setEditedProblemText(data.problemData.problem_text || '');
@@ -291,14 +303,58 @@ export default function AgentAssessmentPage() {
         ...sessionData.problemData,
         modified_explanation: editedExplanation // 修正後の解説を設定
       };
-      
-      const result = await saveProblem(updatedProblemData, sessionData.chatHistories, userInfo);
+
+      const result = await saveProblem(updatedProblemData, sessionData.chatHistories, { id: user.id, email: user.email || undefined });
 
       console.log('[AgentAssessment] 保存結果:', result);
 
       if (result.success) {
-        // SessionStorage をクリア
+        console.log('[AgentAssessment] 問題保存成功 - セッションをクリア開始');
+        
+        if (user?.id) {
+          // review chat履歴のクリア
+          if (learningTopic) {
+            const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
+            localStorage.removeItem(reviewStorageKey);
+            console.log(`localStorage removed: ${reviewStorageKey}`);
+          }
+
+          // explanation chat履歴のクリア
+          const explanationStorageKey = `explanation-chat-messages:${user.id}`;
+          localStorage.removeItem(explanationStorageKey);
+          console.log(`localStorage removed: ${explanationStorageKey}`);
+
+          // chat (問題作成チャット) 履歴のクリア
+          const chatStorageKey = `chatMessages:${user.id}:${learningTopic}`;
+          localStorage.removeItem(chatStorageKey);
+          console.log(`localStorage removed: ${chatStorageKey}`);
+        }
+
+        // SessionStorage を全てクリア
         sessionStorage.removeItem('problemDataForAssessment');
+        sessionStorage.removeItem('problemTitle');
+        sessionStorage.removeItem('learningTopic');
+        sessionStorage.removeItem('explanation');
+        sessionStorage.removeItem('predicted_accuracy');
+        sessionStorage.removeItem('predicted_answerTime');
+        // ブラウザバック対応用のデータもクリア
+        sessionStorage.removeItem('currentSpreadsheetId');
+        sessionStorage.removeItem('problemText');
+        sessionStorage.removeItem('answerText');
+        
+        // ProblemContext のスプレッドシート情報をクリア
+        clearPersistedSpreadsheet();
+        
+        // 学習項目選択状態をクリア
+        clearTopicSelection();
+
+        // チャットサービスの履歴もクリア
+        chatService.clearHistory();
+        reviewChatService.clearHistory();
+        explanationChatService.clearHistory();
+        
+        console.log('[AgentAssessment] 全てのセッション情報をクリアしました');
+        
         alert('問題が保存されました！');
         router.push('/dashboard');
       } else {
@@ -329,8 +385,53 @@ export default function AgentAssessmentPage() {
       console.log('[AgentAssessment] 保存結果:', result);
 
       if (result.success) {
-        // SessionStorage をクリア
+        console.log('[AgentAssessment] 問題登録成功 - セッションをクリア開始');
+
+        if (user?.id) {
+          // review chat履歴のクリア
+          if (learningTopic) {
+            const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
+            localStorage.removeItem(reviewStorageKey);
+            console.log(`localStorage removed: ${reviewStorageKey}`);
+          }
+
+          // explanation chat履歴のクリア
+          const explanationStorageKey = `explanation-chat-messages:${user.id}`;
+          localStorage.removeItem(explanationStorageKey);
+          console.log(`localStorage removed: ${explanationStorageKey}`);
+
+          // chat (問題作成チャット) 履歴のクリア
+          const chatStorageKey = `chatMessages:${user.id}:${learningTopic}`;
+          localStorage.removeItem(chatStorageKey);
+          console.log(`localStorage removed: ${chatStorageKey}`);
+        }
+
+        // SessionStorage を全てクリア
         sessionStorage.removeItem('problemDataForAssessment');
+        sessionStorage.removeItem('problemTitle');
+        sessionStorage.removeItem('learningTopic');
+        sessionStorage.removeItem('explanation');
+        sessionStorage.removeItem('predicted_accuracy');
+        sessionStorage.removeItem('predicted_answerTime');
+
+        // ブラウザバック対応用のデータもクリア
+        sessionStorage.removeItem('currentSpreadsheetId');
+        sessionStorage.removeItem('problemText');
+        sessionStorage.removeItem('answerText');
+
+        // チャットサービスの履歴もクリア
+        chatService.clearHistory();
+        reviewChatService.clearHistory();
+        explanationChatService.clearHistory();
+        
+        // ProblemContext のスプレッドシート情報をクリア
+        clearPersistedSpreadsheet();
+        
+        // 学習項目選択状態をクリア
+        clearTopicSelection();
+        
+        console.log('[AgentAssessment] 全てのセッション情報をクリアしました');
+        
         alert('問題が正規に登録されました！');
         router.push('/dashboard');
       } else {
@@ -349,7 +450,37 @@ export default function AgentAssessmentPage() {
   const handleCancel = () => {
     const confirmCancel = confirm('このままキャンセルすると、作成した問題は保存されません。よろしいですか？');
     if (confirmCancel) {
+      // localStorageのチャット履歴をクリア
+      if (user?.id) {
+        if (learningTopic) {
+          const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
+          localStorage.removeItem(reviewStorageKey);
+          console.log(`localStorage removed: ${reviewStorageKey}`);
+        }
+        const explanationStorageKey = `explanation-chat-messages:${user.id}`;
+        localStorage.removeItem(explanationStorageKey);
+        console.log(`localStorage removed: ${explanationStorageKey}`);
+        
+        const chatStorageKey = `chatMessages:${user.id}:${learningTopic}`;
+        localStorage.removeItem(chatStorageKey);
+        console.log(`localStorage removed: ${chatStorageKey}`);
+      }
+
       sessionStorage.removeItem('problemDataForAssessment');
+      sessionStorage.removeItem('problemTitle');
+      sessionStorage.removeItem('learningTopic');
+      sessionStorage.removeItem('explanation');
+      sessionStorage.removeItem('predicted_accuracy');
+      sessionStorage.removeItem('predicted_answerTime');
+      sessionStorage.removeItem('currentSpreadsheetId');
+      sessionStorage.removeItem('problemText');
+      sessionStorage.removeItem('answerText');
+
+      // チャットサービスの履歴もクリア
+      chatService.clearHistory();
+      reviewChatService.clearHistory();
+      explanationChatService.clearHistory();
+
       router.push('/dashboard');
     }
   };
@@ -379,7 +510,37 @@ export default function AgentAssessmentPage() {
   const handleBackToDashboard = () => {
     const confirmCancel = confirm('Dashboardに戻ると、作成中の問題は保存されません。よろしいですか？');
     if (confirmCancel) {
+      // localStorageのチャット履歴をクリア
+      if (user?.id) {
+        if (learningTopic) {
+          const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
+          localStorage.removeItem(reviewStorageKey);
+          console.log(`localStorage removed: ${reviewStorageKey}`);
+        }
+        const explanationStorageKey = `explanation-chat-messages:${user.id}`;
+        localStorage.removeItem(explanationStorageKey);
+        console.log(`localStorage removed: ${explanationStorageKey}`);
+        
+        const chatStorageKey = `chatMessages:${user.id}:${learningTopic}`;
+        localStorage.removeItem(chatStorageKey);
+        console.log(`localStorage removed: ${chatStorageKey}`);
+      }
+
       sessionStorage.removeItem('problemDataForAssessment');
+      sessionStorage.removeItem('problemTitle');
+      sessionStorage.removeItem('learningTopic');
+      sessionStorage.removeItem('explanation');
+      sessionStorage.removeItem('predicted_accuracy');
+      sessionStorage.removeItem('predicted_answerTime');
+      sessionStorage.removeItem('currentSpreadsheetId');
+      sessionStorage.removeItem('problemText');
+      sessionStorage.removeItem('answerText');
+
+      // チャットサービスの履歴もクリア
+      chatService.clearHistory();
+      reviewChatService.clearHistory();
+      explanationChatService.clearHistory();
+
       router.push('/dashboard');
     }
   };
