@@ -163,7 +163,15 @@ export default function AgentAssessmentPage() {
         if (data.problemData.spreadsheet_id) {
           console.log('[AgentAssessment] スプレッドシートデータ取得開始:', data.problemData.spreadsheet_id);
           try {
-            const response = await fetch(`/api/gas/get-problem-data?spreadsheetId=${data.problemData.spreadsheet_id}`);
+            // 正しいエンドポイント /api/gas/get-data を使用（POSTメソッド）
+            const response = await fetch('/api/gas/get-data', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ spreadsheetId: data.problemData.spreadsheet_id }),
+            });
+
             if (response.ok) {
               const spreadsheetData = await response.json();
               console.log('[AgentAssessment] スプレッドシートデータ取得成功:', spreadsheetData);
@@ -182,7 +190,8 @@ export default function AgentAssessmentPage() {
                 }
               }
             } else {
-              console.warn('[AgentAssessment] スプレッドシートデータ取得失敗:', response.status);
+              const errorText = await response.text();
+              console.error('[AgentAssessment] スプレッドシートデータ取得失敗:', response.status, errorText);
             }
           } catch (err) {
             console.error('[AgentAssessment] スプレッドシートデータ取得エラー:', err);
@@ -221,15 +230,7 @@ export default function AgentAssessmentPage() {
     assessmentService.setExplanation(editedExplanation);
   }, [editedExplanation]);
 
-  // スプレッドシートデータが取得できた後に自動診断を実行
-  useEffect(() => {
-    if (currentSpreadsheetData && sessionData && problemText && answerText && !isDiagnosing && !diagnosisResult) {
-      console.log('[AgentAssessment] 全てのデータ取得完了 - 自動診断を開始');
-      runDiagnosis();
-    }
-  }, [currentSpreadsheetData, sessionData, problemText, answerText]);
-
-  // 自動診断を実行（同期されたデータを使用）
+  // 診断を実行（ボタンクリック時のみ）
   const runDiagnosis = async () => {
     if (!sessionData?.problemData) {
       console.error('[AgentAssessment] 問題データが見つかりません');
@@ -460,7 +461,7 @@ export default function AgentAssessmentPage() {
     }
   };
 
-  // create-mcqページに戻る（SessionStorageデータを保持）
+  // add-explanationページに戻る（SessionStorageデータを保持）
   const handleBackToEdit = () => {
     // 編集内容をsessionDataに反映してSessionStorageに保存
     if (sessionData) {
@@ -477,8 +478,8 @@ export default function AgentAssessmentPage() {
       sessionStorage.setItem('problemDataForAssessment', JSON.stringify(updatedSessionData));
       console.log('[AgentAssessment] 編集内容を保存:', updatedSessionData);
     }
-    // SessionStorageは保持したまま create-mcq に戻る
-    router.push('/create-mcq');
+    // SessionStorageは保持したまま add-explanation に戻る
+    router.push('/add-explanation');
   };
 
   // Dashboardに戻る

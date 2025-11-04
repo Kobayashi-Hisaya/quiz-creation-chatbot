@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-5-chat-latest" } = body;
+    const { messages, systemPrompt, model = "gpt-5-chat-latest" } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -21,6 +21,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // systemPrompt が提供されている場合、messages の先頭に system メッセージとして追加
+    const fullMessages = systemPrompt
+      ? [{ role: 'system', content: systemPrompt }, ...messages]
+      : messages;
+
+    console.log('[agent-assessment API] System prompt length:', systemPrompt?.length || 0);
+    console.log('[agent-assessment API] Total messages:', fullMessages.length);
 
     const chatModel = new ChatOpenAI({
       apiKey: OPENAI_API_KEY,
@@ -31,16 +39,16 @@ export async function POST(request: NextRequest) {
   // },
     });
 
-    const response = await chatModel.invoke(messages);
+    const response = await chatModel.invoke(fullMessages);
 
     return NextResponse.json({
       content: response.content,
       role: 'assistant',
     });
   } catch (error) {
-    console.error("Error in explanation chat API:", error);
+    console.error("Error in agent assessment API:", error);
     return NextResponse.json(
-      { error: "Failed to process explanation chat request" },
+      { error: "Failed to process agent assessment request" },
       { status: 500 }
     );
   }
