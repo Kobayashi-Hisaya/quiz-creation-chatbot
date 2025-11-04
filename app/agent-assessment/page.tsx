@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Split from 'react-split';
+import '@/styles/split.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProblem } from '@/services/problemService';
 import type { SaveProblemData, ChatHistoryInput } from '@/services/problemService';
@@ -30,6 +32,35 @@ export default function AgentAssessmentPage() {
   const [editedCode, setEditedCode] = useState<string>('');
   const [editedExplanation, setEditedExplanation] = useState<string>('');
   const [editedChoices, setEditedChoices] = useState<any[]>([]);
+
+  // Split sizes の管理（localStorage に保存）
+  const VERTICAL_SPLIT_KEY = 'agent-assessment-vertical-split';
+  const DEFAULT_VERTICAL_SIZES: number[] = [70, 30]; // 上下 70:30
+  
+  const getInitialVerticalSizes = (): number[] => {
+    if (typeof window === 'undefined') return DEFAULT_VERTICAL_SIZES;
+    try {
+      const raw = localStorage.getItem(VERTICAL_SPLIT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as number[];
+        if (Array.isArray(parsed) && parsed.length === 2) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to restore vertical split sizes', e);
+    }
+    return DEFAULT_VERTICAL_SIZES;
+  };
+
+  const [verticalSizes, setVerticalSizes] = useState<number[]>(getInitialVerticalSizes);
+
+  const handleVerticalDragEnd = (newSizes: number[]) => {
+    setVerticalSizes(newSizes);
+    try {
+      localStorage.setItem(VERTICAL_SPLIT_KEY, JSON.stringify(newSizes));
+    } catch (e) {
+      console.warn('Failed to save vertical split sizes', e);
+    }
+  };
 
   // 近未来風ボタンスタイル定義
   const getButtonStyle = (type: 'primary' | 'success' | 'warning' | 'danger' | 'secondary', isDisabled: boolean = false) => {
@@ -608,78 +639,145 @@ export default function AgentAssessmentPage() {
           </div>
         </div>
 
-        {/* 右側：診断用スプレッドシートパネル */}
+        {/* 右側：縦Split（スプレッドシート70% + 解説編集30%） */}
         <div style={{
           flex: '0 0 50%',
           backgroundColor: 'white',
-          overflow: 'auto',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{
-            padding: '20px',
-            flex: 1,
-            overflow: 'auto'
-          }}>
-            <h2 style={{
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#2c3e50',
-              marginTop: 0,
-              marginBottom: '16px',
-              paddingBottom: '12px',
-              borderBottom: '2px solid #2196f3'
+          <Split
+            sizes={verticalSizes}
+            minSize={150}
+            gutterSize={8}
+            direction="vertical"
+            cursor="row-resize"
+            className="split-flex"
+            onDragEnd={handleVerticalDragEnd}
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            {/* 上部：スプレッドシート */}
+            <div style={{
+              height: '100%',
+              backgroundColor: 'white',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
-              スプレッドシート（編集・診断）
-            </h2>
-
-            {sessionData?.problemData?.spreadsheet_id ? (
               <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                height: '100%'
+                padding: '16px 20px',
+                backgroundColor: '#1a1a2e',
+                color: 'white',
+                borderBottom: '3px solid #00d4ff',
+                flexShrink: 0
               }}>
-                <iframe
-                  src={`https://docs.google.com/spreadsheets/d/${sessionData.problemData.spreadsheet_id}/edit?usp=sharing&rm=minimal`}
-                  style={{
-                    flex: 1,
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    minHeight: '400px',
-                    backgroundColor: 'white'
-                  }}
-                  title="作業用スプレッドシート（スプシ①）"
-                  allowFullScreen
-                />
-                <div style={{
+                <h2 style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: 700,
+                  letterSpacing: '0.5px'
+                }}>
+                  スプレッドシート（編集・診断）
+                </h2>
+                <p style={{
+                  margin: '4px 0 0 0',
                   fontSize: '11px',
-                  color: '#666',
-                  textAlign: 'center',
-                  padding: '4px'
+                  color: '#00d4ff',
+                  fontWeight: 400
                 }}>
                   このスプレッドシートで問題データを直接編集できます
-                </div>
-              </div>
-            ) : (
-              <div style={{
-                backgroundColor: '#fff3cd',
-                border: '1px solid #ffc107',
-                padding: '16px',
-                borderRadius: '8px',
-                textAlign: 'center'
-              }}>
-                <p style={{
-                  margin: 0,
-                  fontSize: '14px',
-                  color: '#856404',
-                  fontWeight: '500'
-                }}>
-                  スプレッドシートが作成されていません
                 </p>
               </div>
-            )}
-          </div>
+
+              <div style={{
+                flex: 1,
+                position: 'relative',
+                backgroundColor: '#f9f9f9',
+                overflow: 'hidden'
+              }}>
+                {sessionData?.problemData?.spreadsheet_id ? (
+                  <iframe
+                    src={`https://docs.google.com/spreadsheets/d/${sessionData.problemData.spreadsheet_id}/edit?usp=sharing&rm=minimal`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none'
+                    }}
+                    title="作業用スプレッドシート（スプシ①）"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    color: '#999',
+                    fontSize: '14px'
+                  }}>
+                    スプレッドシートが作成されていません
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 下部：解説編集 */}
+            <div style={{
+              height: '100%',
+              backgroundColor: '#ffffff',
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{
+                padding: '12px 20px',
+                backgroundColor: '#2c3e50',
+                color: 'white',
+                borderBottom: '2px solid #3498db',
+                flexShrink: 0
+              }}>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  letterSpacing: '0.5px'
+                }}>
+                  解説編集
+                </h3>
+              </div>
+
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                overflow: 'auto'
+              }}>
+                <textarea
+                  value={editedExplanation}
+                  onChange={(e) => setEditedExplanation(e.target.value)}
+                  placeholder="解説を入力してください..."
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '150px',
+                    padding: '12px',
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontFamily: 'inherit',
+                    resize: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+          </Split>
         </div>
 
         {/* 下部アクションボタン */}
