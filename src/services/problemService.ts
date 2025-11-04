@@ -347,7 +347,8 @@ export const getProblemsInGroup = async (
   userId: string
 ): Promise<{
   success: boolean;
-  problems?: (Problem & { author_email?: string })[];
+  problems?: (Problem & { author_name?: string })[];
+  groupId?: string;
   error?: string;
 }> => {
   try {
@@ -370,10 +371,10 @@ export const getProblemsInGroup = async (
       return { success: true, problems: [] };
     }
 
-    // 同じグループのユーザーを取得
+    // 同じグループのユーザーを取得（student_nameを含む）
     const { data: groupUsers, error: groupUsersError } = await supabase
       .from('profiles')
-      .select('id, email')
+      .select('id, student_name')
       .eq('group_id', groupId);
 
     if (groupUsersError) {
@@ -399,19 +400,19 @@ export const getProblemsInGroup = async (
       return { success: false, error: '問題の取得に失敗しました' };
     }
 
-    // プロフィールマップを作成
+    // プロフィールマップを作成（student_name用）
     const profileMap = (groupUsers || []).reduce((acc, profile) => {
-      acc[profile.id] = profile.email;
+      acc[profile.id] = profile.student_name;
       return acc;
     }, {} as Record<string, string>);
 
-    // 問題にメールアドレスを追加
+    // 問題に学生名を追加
     const problemsWithAuthor = (problems || []).map((problem) => ({
       ...problem,
-      author_email: profileMap[problem.user_id] || undefined,
+      author_name: profileMap[problem.user_id] || undefined,
     }));
 
-    return { success: true, problems: problemsWithAuthor };
+    return { success: true, problems: problemsWithAuthor, groupId };
   } catch (error) {
     console.error('Get problems in group error:', error);
     return { success: false, error: '予期しないエラーが発生しました' };

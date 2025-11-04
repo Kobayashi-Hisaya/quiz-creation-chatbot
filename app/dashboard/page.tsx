@@ -334,14 +334,27 @@ const DashboardPageContent: React.FC = () => {
                   </div>
                 )}
 
+                {/* 問題タイトル */}
+                {problem.title && (
+                  <div style={{
+                    fontSize: '17px',
+                    fontWeight: 'bold',
+                    color: '#2c3e50',
+                    marginBottom: '8px',
+                    lineHeight: '1.4'
+                  }}>
+                    {problem.title}
+                  </div>
+                )}
+
                 {/* 問題文の冒頭 */}
                 <div style={{
-                  fontSize: '15px',
-                  color: '#2c3e50',
+                  fontSize: '14px',
+                  color: '#666',
                   lineHeight: '1.6',
                   marginTop: '8px'
                 }}>
-                  {truncateText(problem.problem_text, 50)}
+                  {truncateText(problem.problem_text, 60)}
                 </div>
 
                 {/* 言語情報 - language が空でない場合のみ表示 */}
