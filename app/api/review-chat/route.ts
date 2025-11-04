@@ -29,18 +29,30 @@ export async function POST(request: NextRequest) {
       modelKwargs: {
       reasoning_effort: reasoning_effort
   },
+
     });
 
-    const response = await chatModel.invoke(messages);
+    // NextRequestのAbortSignalを取得してChatOpenAIに渡す
+    const response = await chatModel.invoke(messages, {
+      signal: request.signal,
+    });
 
     return NextResponse.json({
       content: response.content,
       role: 'assistant',
     });
   } catch (error) {
-    console.error("Error in explanation chat API:", error);
+    // AbortErrorの場合は特別な処理（クライアントが意図的にキャンセルした）
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log("Request was aborted by client");
+      return NextResponse.json(
+        { error: "Request cancelled" },
+        { status: 499 } // クライアント側でのキャンセルを示すステータスコード
+      );
+    }
+    console.error("Error in review-chat API:", error);
     return NextResponse.json(
-      { error: "Failed to process explanation chat request" },
+      { error: "Failed to process review chat request" },
       { status: 500 }
     );
   }

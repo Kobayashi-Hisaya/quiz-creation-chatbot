@@ -45,6 +45,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   // データ整理問題スプレッドシートからのデータ変更を処理
   const handleSheetsDataChange = useCallback((data: DataProblemTemplateData) => {
     // スプレッドシートのデータをProblemContextに反映
+    // 既存のlanguageとlearningTopicは保持する（review-learning-topicで設定された値を消さないため）
     setProblemData({
       problem: data.problemText || '',
       code: data.code || data.answerText || '',
@@ -53,12 +54,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       predicted_accuracy: null,
       predicted_answerTime: null,
     });
-    
+
     // 親コンポーネント（HomePage）にもデータ変更を通知
     if (onSpreadsheetDataChange) {
       onSpreadsheetDataChange(data);
     }
-  }, [setProblemData, onSpreadsheetDataChange]);
+  }, [setProblemData, onSpreadsheetDataChange, problemData.language, problemData.learningTopic]);
 
   // スプレッドシート作成時の処理
   const handleSpreadsheetCreated = (sheetId: string, embedUrl: string) => {
@@ -108,6 +109,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         sessionStorage.setItem('currentSpreadsheetId', spreadsheetId);
         sessionStorage.setItem('problemText', latestData.problemText || '');
         sessionStorage.setItem('answerText', latestData.answerText || '');
+        sessionStorage.setItem('learningTopic', problemData.learningTopic || '');
       }
 
       // Next.jsのルーターで遷移
@@ -177,7 +179,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           onClick={handleTransitionToQuiz}
           disabled={isTransitioning || !problemData.problem?.trim() || !spreadsheetId}
           style={{
-            padding: "12px 20px",
+            padding: "10px 10px",
             backgroundColor: isTransitioning || !problemData.problem?.trim() || !spreadsheetId 
               ? "#ccc" 
               : "#4CAF50",
@@ -187,7 +189,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             cursor: isTransitioning || !problemData.problem?.trim() || !spreadsheetId 
               ? "not-allowed" 
               : "pointer",
-            fontSize: "14px",
+            fontSize: "12px",
             fontWeight: "bold",
             boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
           }}
@@ -202,7 +204,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             }
           }}
         >
-          {isTransitioning ? "移行中..." : "選択式問題の作成に移る"}
+          {isTransitioning ? "移行中..." : "解説の作成に移る"}
         </button>
       </div>
     </div>

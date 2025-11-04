@@ -67,7 +67,7 @@ DROP COLUMN IF EXISTS code_with_blanks;
 ALTER TABLE problems 
 ADD COLUMN IF NOT EXISTS spreadsheet_url TEXT,
 ADD COLUMN IF NOT EXISTS spreadsheet_id TEXT,
-ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT 'data_analysis',
+ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT '',
 ADD COLUMN IF NOT EXISTS session_id UUID,
 ADD COLUMN IF NOT EXISTS table_data JSONB;
 

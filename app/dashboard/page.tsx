@@ -92,7 +92,7 @@ const DashboardPageContent: React.FC = () => {
   };
 
   const handleCreateNew = () => {
-    router.push('/create-quiz');
+    router.push('/review-learning-topic');
   };
 
   const handleGroupMode = () => {
@@ -344,16 +344,18 @@ const DashboardPageContent: React.FC = () => {
                   {truncateText(problem.problem_text, 50)}
                 </div>
 
-                {/* 言語情報 */}
-                <div style={{
-                  fontSize: '12px',
-                  color: '#666',
-                  marginTop: '12px',
-                  paddingTop: '12px',
-                  borderTop: '1px solid #eee'
-                }}>
-                  言語: {problem.language}
-                </div>
+                {/* 言語情報 - language が空でない場合のみ表示 */}
+                {problem.language && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#666',
+                    marginTop: '12px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid #eee'
+                  }}>
+                    言語: {problem.language}
+                  </div>
+                )}
               </div>
             ))}
           </div>

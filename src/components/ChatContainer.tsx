@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Message } from '../types/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { chatService } from '../services/chatService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProblem } from '@/contexts/ProblemContext';
 import type { DataProblemTemplateData } from '../services/gasClientService';
 
 interface ChatContainerProps {
@@ -11,14 +12,18 @@ interface ChatContainerProps {
   fetchLatestSpreadsheetData?: () => Promise<DataProblemTemplateData | null>;
 }
 
-export const ChatContainer: React.FC<ChatContainerProps> = ({ 
-  spreadsheetData, 
-  fetchLatestSpreadsheetData 
+export const ChatContainer: React.FC<ChatContainerProps> = ({
+  spreadsheetData,
+  fetchLatestSpreadsheetData
 }) => {
   const { user } = useAuth();
+  const { problemData } = useProblem();
+  const hasInitialized = useRef(false);
 
-  // per-user storage key
-  const storageKey = user ? `chatMessages:${user.id}` : 'chatMessages:anon';
+  // per-user storage key (学習項目を含める)
+  const storageKey = user
+    ? `chatMessages:${user.id}:${problemData.learningTopic}`
+    : 'chatMessages:anon';
 
   // localStorageからメッセージ履歴を読み込む
   const loadMessages = (): Message[] => {
@@ -80,6 +85,35 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       chatService.setSpreadsheetData(spreadsheetData);
     }
   }, [spreadsheetData]);
+
+  // 初期化: 学習項目の設定と初期メッセージの表示
+  useEffect(() => {
+    // StrictModeでの二重実行を防ぐ
+    if (hasInitialized.current) return;
+
+    const learningTopic = problemData.learningTopic;
+
+    // 学習項目が設定されており、メッセージが空の場合のみ初期化
+    if (learningTopic && messages.length === 0) {
+      // ChatServiceに学習項目を設定
+      chatService.setLearningTopic(learningTopic);
+
+      // 初期メッセージを取得して表示
+      const initialMessageContent = chatService.getInitialMessage();
+      const initialMessage: Message = {
+        id: 'initial-' + Date.now().toString(),
+        content: initialMessageContent,
+        sender: 'bot',
+        timestamp: new Date(),
+      };
+
+      // 初期メッセージをChatServiceのconversationHistoryに追加
+      chatService.addInitialMessage(initialMessageContent);
+
+      setMessages([initialMessage]);
+      hasInitialized.current = true;
+    }
+  }, [problemData.learningTopic, messages.length]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {

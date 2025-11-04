@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export type LearningTopic = 'モンテカルロ法' | string;
+export type LearningTopic = 'モデル化とシミュレーション/モンテカルロ法' | string;
 
 interface LearningTopicSelectorProps {
   isOpen: boolean;
@@ -8,7 +8,7 @@ interface LearningTopicSelectorProps {
 }
 
 export const LearningTopicSelector: React.FC<LearningTopicSelectorProps> = ({ isOpen, onSelect }) => {
-  const [selectedTopic, setSelectedTopic] = useState<'モンテカルロ法' | 'その他'>('モンテカルロ法');
+  const [selectedTopic, setSelectedTopic] = useState<'モデル化とシミュレーション/モンテカルロ法' | 'その他'>('モデル化とシミュレーション/モンテカルロ法');
   const [customTopic, setCustomTopic] = useState('');
 
   if (!isOpen) return null;
@@ -71,19 +71,19 @@ export const LearningTopicSelector: React.FC<LearningTopicSelectorProps> = ({ is
             marginBottom: '12px',
             cursor: 'pointer',
             padding: '12px',
-            border: selectedTopic === 'モンテカルロ法' ? '2px solid #2196f3' : '1px solid #ddd',
+            border: selectedTopic === 'モデル化とシミュレーション/モンテカルロ法' ? '2px solid #2196f3' : '1px solid #ddd',
             borderRadius: '8px',
-            backgroundColor: selectedTopic === 'モンテカルロ法' ? '#f0f8ff' : 'white'
+            backgroundColor: selectedTopic === 'モデル化とシミュレーション/モンテカルロ法' ? '#f0f8ff' : 'white'
           }}>
             <input
               type="radio"
               name="learningTopic"
-              value="モンテカルロ法"
-              checked={selectedTopic === 'モンテカルロ法'}
-              onChange={(e) => setSelectedTopic(e.target.value as 'モンテカルロ法')}
+              value="モデル化とシミュレーション/モンテカルロ法"
+              checked={selectedTopic === 'モデル化とシミュレーション/モンテカルロ法'}
+              onChange={(e) => setSelectedTopic(e.target.value as 'モデル化とシミュレーション/モンテカルロ法')}
               style={{ marginRight: '8px' }}
             />
-            <strong>モンテカルロ法</strong>
+            <strong>モデル化とシミュレーション/モンテカルロ法</strong>
             <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', marginLeft: '24px' }}>
               乱数を用いたシミュレーション方法
             </div>

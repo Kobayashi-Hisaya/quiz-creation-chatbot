@@ -7,8 +7,6 @@ import { RightPanel } from '@/components/RightPanel';
 import { LearningTopicSelector } from '@/components/LearningTopicSelector';
 import { AssignmentInputPopup } from '@/components/AssignmentInputPopup';
 import { useProblem } from '@/contexts/ProblemContext';
-import { chatService } from '@/services/chatService';
-import type { LearningTopic } from '@/components/LearningTopicSelector';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const SPLIT_STORAGE_KEY = 'create-quiz-split';
@@ -43,12 +41,12 @@ const HomePage: React.FC = () => {
   // Split sizes (percent).
   const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
-  // ページ初回訪問時に学習項目が未設定の場合のみポップアップを表示
-  useEffect(() => {
-    if (!hasTopicBeenSelected) {
-      setShowTopicSelector(true);
-    }
-  }, [hasTopicBeenSelected]);
+  // TopicSelectorは review-learning-topic ページで表示されるため、ここでは表示しない
+  // useEffect(() => {
+  //   if (!hasTopicBeenSelected) {
+  //     setShowTopicSelector(true);
+  //   }
+  // }, [hasTopicBeenSelected]);
 
   // ページロード時にスプレッドシートデータを復元（1回のみ実行）
   useEffect(() => {
@@ -202,10 +200,8 @@ const HomePage: React.FC = () => {
         </div>
       </Split>
 
-      <LearningTopicSelector 
-        isOpen={showTopicSelector}
-        onSelect={handleTopicSelect}
-      />
+       {/* LearningTopicSelector は review-learning-topic ページで表示されるため削除 */}
+       
       <AssignmentInputPopup
         isOpen={showAssignmentPopup}
         onSubmit={handleAssignmentSubmit}

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
-export type LearningTopic = '制御構造' | 'クラス' | string;
+export type LearningTopic = 'モデル化とシミュレーション/モンテカルロ法' | string;
 
 interface ProblemData {
   problem: string;

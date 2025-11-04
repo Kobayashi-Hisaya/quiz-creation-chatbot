@@ -4,10 +4,20 @@ interface GetDataRequest {
   spreadsheetId: string;
 }
 
+interface QuizCellData {
+  cellAddress: string;  // "A8", "B8", "C10" など
+  value: string;        // セルの値（空白セルは含まれない）
+}
+
 interface SheetData {
   sheetName: string;
   sheetId: number;
-  tableData: any[][];
+  problemText: string;   // A2セルの値
+  answerText: string;    // A5セルの値
+  quizData: QuizCellData[];  // 8行目以降のデータ（A～Z列）
+  tableData: any[][];    // シートの全データ（後方互換用）
+  startRow: number;      // データ範囲の開始行（1始まり）
+  startColumn: number;   // データ範囲の開始列（1始まり）
   lastRow: number;
   lastColumn: number;
 }
@@ -15,8 +25,6 @@ interface SheetData {
 interface GASDataResponse {
   success: boolean;
   data?: {
-    problemText: string;
-    answerText?: string;
     sheets: SheetData[];
     lastModified: string;
   };
@@ -75,14 +83,51 @@ export async function POST(request: NextRequest) {
       throw new Error('No data returned from Google Apps Script');
     }
 
-    // 成功レスポンス -- GAS の answerText を透過して返します
+    // 成功レスポンス -- GASの新しい構造をそのまま返す
     const result = {
-      problemText: gasResult.data.problemText,
-      answerText: gasResult.data?.answerText || undefined,
       sheets: gasResult.data.sheets,
       lastModified: gasResult.data.lastModified
     };
 
+    console.log('==============data start=============');
+    console.log('Total sheets count:', result.sheets.length);
+    console.log('');
+
+    // 全シートの情報を表示
+    result.sheets.forEach((sheet, index) => {
+      console.log(`--- Sheet ${index + 1}: "${sheet.sheetName}" ---`);
+      console.log(`  Sheet ID: ${sheet.sheetId}`);
+      console.log(`  Problem Text (A2): ${sheet.problemText}`);
+      console.log(`  Answer Text (A5): ${sheet.answerText}`);
+      console.log(`  Quiz Data count: ${sheet.quizData?.length || 0}`);
+      console.log(`  Last Row: ${sheet.lastRow}, Last Column: ${sheet.lastColumn}`);
+
+      // quizDataの中身を表示（最初の10件と最後の5件）
+      if (sheet.quizData && sheet.quizData.length > 0) {
+        console.log('  Quiz Data samples:');
+        const sampleCount = Math.min(10, sheet.quizData.length);
+        for (let i = 0; i < sampleCount; i++) {
+          const cell = sheet.quizData[i];
+          console.log(`    [${i + 1}] ${cell.cellAddress} = "${cell.value}"`);
+        }
+
+        if (sheet.quizData.length > 15) {
+          console.log(`    ... (${sheet.quizData.length - 15} cells omitted) ...`);
+
+          // 最後の5件を表示
+          const lastStart = sheet.quizData.length - 5;
+          for (let i = lastStart; i < sheet.quizData.length; i++) {
+            const cell = sheet.quizData[i];
+            console.log(`    [${i + 1}] ${cell.cellAddress} = "${cell.value}"`);
+          }
+        }
+      } else {
+        console.log('  Quiz Data: (empty)');
+      }
+      console.log('');
+    });
+
+    console.log('==============data end=============');
     console.log('Data retrieved successfully');
 
     return NextResponse.json(result);

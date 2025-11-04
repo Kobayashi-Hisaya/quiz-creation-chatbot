@@ -20,7 +20,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
       <div style={{ 
         backgroundColor: isUser ? '#2196f3' : '#e3f2fd', 
         color: isUser ? 'white' : '#333',
-        padding: '12px 16px', 
+        padding: '10px 16px', 
         borderRadius: '18px',
         maxWidth: '70%',
         wordBreak: 'break-word'
@@ -29,8 +29,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           whiteSpace: 'pre-wrap',
           fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
           fontSize: '13px',
-          lineHeight: '1.4'
-        } : undefined}>
+          lineHeight: '1.2'
+        } : {
+          fontSize: '13px',
+          lineHeight: '1.2'
+        }}>
           {isUser ? (
             message.content
           ) : (

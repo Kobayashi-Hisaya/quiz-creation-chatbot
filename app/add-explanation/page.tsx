@@ -7,6 +7,8 @@ import { DataSpreadsheetPanel } from '@/components/DataSpreadsheetPanel';
 import { ExplanationChatContainer } from '@/components/ExplanationChatContainer';
 import { TitleInputPopup } from '@/components/TitleInputPopup';
 import { explanationChatService } from '@/services/explanationChatService';
+import { reviewChatService } from '@/services/reviewChatService';
+import { chatService } from '@/services/chatService';
 import { useProblem } from '@/contexts/ProblemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProblem } from '@/services/problemService';
@@ -33,11 +35,12 @@ const getInitialSplitSizes = (key: string, defaultSizes: number[]): number[] => 
 const AddExplanationPage: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const { problemData, spreadsheetState } = useProblem();
+  const { problemData, spreadsheetState, clearTopicSelection } = useProblem();
 
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [problemText, setProblemText] = useState<string>('');
   const [answerText, setAnswerText] = useState<string>('');
+  const [learningTopic, setLearningTopic] = useState<string>('');
   const [explanation, setExplanation] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -76,6 +79,7 @@ const AddExplanationPage: React.FC = () => {
         setSpreadsheetId(storedSpreadsheetId);
         setProblemText(storedProblemText);
         setAnswerText(storedAnswerText || '');
+        setLearningTopic(storedLearningTopic || '');
 
         // explanationChatServiceにコンテキストを設定
         explanationChatService.setProblemContext(storedProblemText, storedAnswerText || '');
@@ -120,6 +124,13 @@ const AddExplanationPage: React.FC = () => {
       if (!confirmed) return;
     }
 
+    // 作成チャット履歴のバリデーション
+    const creationHistory = chatService.getConversationHistory();
+    if (creationHistory.length === 0) {
+      alert('問題作成チャット履歴が見つかりません。create-quizページから問題を作成してください。');
+      return;
+    }
+
     if (!user?.id) {
       alert('ユーザー情報が見つかりません。ログインし直してください。');
       return;
@@ -153,26 +164,34 @@ const AddExplanationPage: React.FC = () => {
       const saveData = {
         problem_text: problemText,
         code: problemData.code || answerText,
-        language: problemData.language || 'data_analysis',
-        learning_topic: problemData.learningTopic || 'data_analysis',
+        language: problemData.language || '',
+        learning_topic: problemData.learningTopic || '',
         code_with_blanks: null,
         choices: null,
         explanation: explanation.trim() || null,
         title: title,
         spreadsheet_url: spreadsheetState?.embedUrl || null,
         spreadsheet_id: spreadsheetId,
-        problem_category: 'data_analysis',
+        problem_category: '',
         session_id: null,
         table_data: null,
         predicted_accuracy: predicted_accuracy,
         predicted_answerTime: predicted_answerTime,
       };
 
-      // チャット履歴を取得
+      // チャット履歴を取得（creation, explanation, review chat履歴を含める）
       const chatHistories = [
+        {
+          chat_type: 'creation' as const,
+          messages: chatService.getConversationHistory(),
+        },
         {
           chat_type: 'explanation' as const,
           messages: explanationChatService.getConversationHistory(),
+        },
+        {
+          chat_type: 'review' as const,
+          messages: reviewChatService.getConversationHistory(),
         },
       ];
 
@@ -312,7 +331,7 @@ const AddExplanationPage: React.FC = () => {
                 overflow: 'auto',
               }}
             >
-              <h2 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: 'bold' }}>
+              <h2 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 'bold' }}>
                 解説文を作成
               </h2>
               <textarea
@@ -336,7 +355,7 @@ const AddExplanationPage: React.FC = () => {
                   onClick={() => router.push('/create-quiz')}
                   style={{
                     padding: '10px 20px',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     backgroundColor: '#f0f0f0',
                     color: '#333',
                     border: '1px solid #ccc',
@@ -344,14 +363,14 @@ const AddExplanationPage: React.FC = () => {
                     cursor: 'pointer',
                   }}
                 >
-                  ← create-quizに戻る
+                  ← 問題作成画面に戻る
                 </button>
                 <button
                   onClick={handleAutodiagnosis}
                   disabled={isSaving}
                   style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
+                    padding: '5px 10px',
+                    fontSize: '13px',
                     fontWeight: 'bold',
                     backgroundColor: isSaving ? '#ccc' : '#4CAF50',
                     color: 'white',
@@ -360,7 +379,11 @@ const AddExplanationPage: React.FC = () => {
                     cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >
+<<<<<<< HEAD
                   {isSaving ? '処理中...' : '自動診断'}
+=======
+                  {isSaving ? '保存中...' : '問題を保存'}
+>>>>>>> main
                 </button>
               </div>
             </div>

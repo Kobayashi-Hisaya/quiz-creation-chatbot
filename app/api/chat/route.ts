@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-4o", temperature = 0.7 } = body;
+    const { messages, model = "gpt-5-chat-latest"} = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
     const chatModel = new ChatOpenAI({
       apiKey: OPENAI_API_KEY,
       model,
-      temperature,
+      // modelKwargs: {
+      //   reasoning_effort: reasoning_effort
+      // },
+      // verbosity
+      // temperature,
     });
 
     const response = await chatModel.invoke(messages);
