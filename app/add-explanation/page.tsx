@@ -149,7 +149,7 @@ const AddExplanationPage: React.FC = () => {
       console.log('predicted_accuracy:', predicted_accuracy);
       console.log('predicted_answerTime:', predicted_answerTime);
 
-      // 保存するデータを準備
+      // 【ステップ1】保存するデータを準備（スプシ②IDは後で更新）
       const saveData = {
         problem_text: problemText,
         code: problemData.code || answerText,
@@ -184,46 +184,39 @@ const AddExplanationPage: React.FC = () => {
         },
       ];
 
-      // Supabaseに保存
+      // 【ステップ2】Supabaseに保存（高速化のため先に保存）
+      console.log('[add-explanation] DB保存開始...');
       const result = await saveProblem(saveData, chatHistories, {
         id: user!.id,
         email: user!.email || undefined,
       });
+      console.log('[add-explanation] DB保存完了:', result);
 
       if (result.success) {
-        // Assessment spreadsheet を作成
+        // 【ステップ3】スプシ①をコピーしてスプシ②を作成（DB保存後にバックグラウンドで実行）
         let assessmentSpreadsheetId: string | null = null;
         
-        if (user?.email) {
+        if (user?.email && spreadsheetId) {
           try {
-            const assessmentResponse = await fetch('/api/gas/create-assessment-sheet', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userEmail: user.email,
-                sessionId: `assessment-${Date.now()}`,
-                problemData: {
-                  problem_text: saveData.problem_text,
-                  explanation: saveData.explanation,
-                  code: saveData.code,
-                  language: saveData.language,
-                  learning_topic: saveData.learning_topic,
-                  predicted_accuracy: saveData.predicted_accuracy,
-                  predicted_answerTime: saveData.predicted_answerTime,
-                }
-              })
-            });
+            console.log('[add-explanation] スプシ①をコピーしてスプシ②を作成中...', spreadsheetId);
+            
+            const { gasClientService } = await import('@/services/gasClientService');
+            const copyResult = await gasClientService.copySpreadsheetForAssessment(
+              spreadsheetId, // スプシ①のID
+              user.email,
+              `assessment-${Date.now()}`
+            );
 
-            if (assessmentResponse.ok) {
-              const assessmentResult = await assessmentResponse.json();
-              assessmentSpreadsheetId = assessmentResult.spreadsheet.spreadsheetId;
+            if (copyResult && copyResult.spreadsheetId) {
+              assessmentSpreadsheetId = copyResult.spreadsheetId; // スプシ②のID
+              console.log('[add-explanation] スプシ②作成完了:', assessmentSpreadsheetId);
+              console.log('スプシ②のURL:', copyResult.spreadsheetUrl);
             } else {
-              console.error('Assessment spreadsheet creation failed:', assessmentResponse.statusText);
+              console.error('[add-explanation] スプレッドシートのコピーに失敗');
             }
           } catch (error) {
-            console.error('Error creating assessment spreadsheet:', error);
+            console.error('[add-explanation] スプレッドシートコピーエラー:', error);
+            // コピー失敗してもページ遷移は続行（診断機能が使えないだけ）
           }
         }
 
@@ -231,7 +224,7 @@ const AddExplanationPage: React.FC = () => {
         const sessionData = {
           problemData: {
             ...saveData,
-            assessment_spreadsheet_id: assessmentSpreadsheetId
+            assessment_spreadsheet_id: assessmentSpreadsheetId // スプシ②のIDを保存（nullの場合もあり）
           },
           chatHistories: chatHistories,
         };
@@ -368,7 +361,7 @@ const AddExplanationPage: React.FC = () => {
                     cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSaving ? '処理中...' : '自動診断'}
+                  {isSaving ? '保存中（最大2分）...' : '自動診断'}
                 </button>
               </div>
             </div>

@@ -524,7 +524,7 @@ export default function AgentAssessmentPage() {
               paddingBottom: '12px',
               borderBottom: '2px solid #9c27b0'
             }}>
-              🤖 AI診断結果
+              AI診断結果
             </h2>
 
             {/* 診断状態の表示 */}
@@ -542,7 +542,7 @@ export default function AgentAssessmentPage() {
                   color: '#856404',
                   fontWeight: '500'
                 }}>
-                  ⏳ 診断中...
+                  診断中...
                 </p>
               </div>
             ) : diagnosisResult ? (
@@ -631,7 +631,7 @@ export default function AgentAssessmentPage() {
               paddingBottom: '12px',
               borderBottom: '2px solid #2196f3'
             }}>
-              📊 診断用スプレッドシート
+              診断用スプレッドシート
             </h2>
 
             {sessionData?.problemData?.assessment_spreadsheet_id ? (
@@ -659,7 +659,7 @@ export default function AgentAssessmentPage() {
                   color: '#856404',
                   fontWeight: '500'
                 }}>
-                  📋 スプレッドシートが作成されていません
+                  スプレッドシートが作成されていません
                 </p>
               </div>
             )}
@@ -693,7 +693,7 @@ export default function AgentAssessmentPage() {
               }
             }}
           >
-            {isSaving ? '⏳ 登録中...' : '✅ 登録'}
+            {isSaving ? '登録中...' : '登録'}
           </button>
 
           <button
@@ -708,7 +708,7 @@ export default function AgentAssessmentPage() {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            ❌ キャンセル
+            キャンセル
           </button>
         </div>
       </div>

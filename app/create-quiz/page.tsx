@@ -42,20 +42,14 @@ const HomePage: React.FC = () => {
   // Split sizes (percent).
   const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
-  // ページ初期化時に、学習項目がすでに選択されている場合は作問課題ポップアップを表示
+  // ページ初期化時のログ出力のみ（作問課題ポップアップはスプレッドシート作成後に表示）
   useEffect(() => {
     console.log('=== create-quiz ページ初期化 ===');
     console.log('hasTopicBeenSelected:', hasTopicBeenSelected);
     console.log('learningTopic:', problemData.learningTopic);
     console.log('predicted_accuracy:', problemData.predicted_accuracy);
     console.log('predicted_answerTime:', problemData.predicted_answerTime);
-    
-    // 学習項目が既に選択されていて、作問課題がまだ入力されていない場合
-    if (hasTopicBeenSelected && problemData.predicted_accuracy === null && problemData.predicted_answerTime === null) {
-      console.log('作問課題ポップアップを表示します');
-      setShowAssignmentPopup(true);
-    }
-  }, [hasTopicBeenSelected, problemData.predicted_accuracy, problemData.predicted_answerTime]);
+  }, [hasTopicBeenSelected, problemData.learningTopic, problemData.predicted_accuracy, problemData.predicted_answerTime]);
 
   // TopicSelectorは review-learning-topic ページで表示されるため、ここでは表示しない
   // useEffect(() => {
@@ -80,6 +74,12 @@ const HomePage: React.FC = () => {
           if (data) {
             setCurrentSpreadsheetData(data);
             setIsDataRestored(true);
+            
+            // 復元後、学習項目が選択済みで作問課題がまだ入力されていない場合はポップアップを表示
+            if (hasTopicBeenSelected && problemData.predicted_accuracy === null && problemData.predicted_answerTime === null) {
+              console.log('作問課題ポップアップを表示します（スプレッドシート復元後）');
+              setShowAssignmentPopup(true);
+            }
           }
         } catch (error) {
           console.error('Failed to restore spreadsheet data:', error);
@@ -124,9 +124,17 @@ const HomePage: React.FC = () => {
   };
 
   // スプレッドシート作成時の処理
-  const handleSpreadsheetCreated = (spreadsheetId: string) => {
+  const handleSpreadsheetCreated = useCallback((spreadsheetId: string) => {
+    console.log('=== スプレッドシート作成完了 ===');
+    console.log('spreadsheetId:', spreadsheetId);
     setCurrentSpreadsheetId(spreadsheetId);
-  };
+    
+    // 学習項目が選択済みで、作問課題がまだ入力されていない場合のみポップアップを表示
+    if (hasTopicBeenSelected && problemData.predicted_accuracy === null && problemData.predicted_answerTime === null) {
+      console.log('作問課題ポップアップを表示します（スプレッドシート作成後）');
+      setShowAssignmentPopup(true);
+    }
+  }, [hasTopicBeenSelected, problemData.predicted_accuracy, problemData.predicted_answerTime]);
 
   // getCurrentData関数の参照を受け取る
   const handleGetCurrentDataRef = useCallback((getCurrentData: () => Promise<DataProblemTemplateData | null>) => {

@@ -256,6 +256,51 @@ class GASClientService {
       return null;
     }
   }
+
+  /**
+   * 診断用にスプレッドシートをコピー
+   * 目的: 修正前のデータを保持したまま、修正後のデータを別カラムに保存するため
+   * 
+   * @param originalSpreadsheetId - コピー元のスプレッドシートID
+   * @param userEmail - ユーザーのメールアドレス
+   * @param sessionId - セッションID
+   */
+  async copySpreadsheetForAssessment(
+    originalSpreadsheetId: string,
+    userEmail: string,
+    sessionId: string
+  ): Promise<{ spreadsheetId: string; spreadsheetUrl: string; editUrl: string } | null> {
+    try {
+      console.log('[GASClient] Copying spreadsheet for assessment:', originalSpreadsheetId);
+      
+      const response = await fetch('/api/gas/copy-for-assessment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          originalSpreadsheetId,
+          userEmail,
+          sessionId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to copy spreadsheet for assessment');
+      }
+
+      const result = await response.json();
+      console.log('[GASClient] Spreadsheet copied successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('[GASClient] Error copying spreadsheet for assessment:', error);
+      return null;
+    }
+  }
+
+  // updateAssessmentSheet は削除
+  // 理由: 新仕様ではスプシ①で直接編集し、スプシ②はバックアップ専用で編集しない
 }
 
 // シングルトンインスタンス

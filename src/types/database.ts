@@ -42,7 +42,7 @@ export interface ChatHistory {
   id: string; // UUID
   problem_id: string; // UUID, references problems(id)
   user_id: string; // UUID, references auth.users(id)
-  chat_type: 'creation' | 'explanation' | 'review';
+  chat_type: 'creation' | 'explanation' | 'review' | 'assessment';
   messages: ChatMessage[]; // JSONB
   created_at: string; // ISO 8601 timestamp
 }

@@ -164,7 +164,7 @@ export const AssessmentSpreadsheetPanel: React.FC<AssessmentSpreadsheetPanelProp
             fontWeight: 'bold',
             color: '#333'
           }}>
-            📊 修正用スプレッドシート
+            修正用スプレッドシート
           </div>
           <iframe
             src={embedUrl}

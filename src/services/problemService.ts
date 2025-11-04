@@ -80,13 +80,14 @@ export const saveProblem = async (
     let problemError: any = null;
     try {
       console.log('[problemService] Supabase insert 開始');
+      // タイムアウトを120秒に延長（安全策として残す）
       const insertResult = await Promise.race([
         supabase
           .from('problems')
           .insert([insertData])
           .select()
           .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 60000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました (120秒)')), 120000))
       ]) as { data: Problem | null, error: any };
       
       problem = insertResult.data;
@@ -119,11 +120,12 @@ export const saveProblem = async (
 
     let chatError: any = null;
     try {
+      // タイムアウトを90秒に延長
       const chatResult = await Promise.race([
         supabase
           .from('chat_histories')
           .insert(chatHistoryInserts),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('チャット履歴挿入がタイムアウトしました')), 60000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('チャット履歴挿入がタイムアウトしました (90秒)')), 90000))
       ]) as { error: any };
       chatError = chatResult.error;
     } catch (error) {
