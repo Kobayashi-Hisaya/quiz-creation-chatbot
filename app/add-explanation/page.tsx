@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Split from 'react-split';
 import '@/styles/split.css';
@@ -11,6 +11,7 @@ import { chatService } from '@/services/chatService';
 import { useProblem } from '@/contexts/ProblemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProblem } from '@/services/problemService';
+import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const HORIZONTAL_SPLIT_KEY = 'add-explanation-horizontal-split';
 const VERTICAL_SPLIT_KEY = 'add-explanation-vertical-split';
@@ -43,6 +44,7 @@ const AddExplanationPage: React.FC = () => {
   const [explanation, setExplanation] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [spreadsheetData, setSpreadsheetData] = useState<DataProblemTemplateData | null>(null);
 
   const [horizontalSizes, setHorizontalSizes] = useState<number[]>(
     getInitialSplitSizes(HORIZONTAL_SPLIT_KEY, DEFAULT_HORIZONTAL_SIZES)
@@ -52,6 +54,7 @@ const AddExplanationPage: React.FC = () => {
   );
 
   const explanationInputRef = useRef<HTMLTextAreaElement>(null);
+  const getCurrentDataRef = useRef<(() => Promise<DataProblemTemplateData | null>) | null>(null);
 
   // ページ初期化: sessionStorageからデータを読み込み
   useEffect(() => {
@@ -62,6 +65,7 @@ const AddExplanationPage: React.FC = () => {
         const storedProblemText = sessionStorage.getItem('problemText');
         const storedAnswerText = sessionStorage.getItem('answerText');
         const storedLearningTopic = sessionStorage.getItem('learningTopic');
+        const storedExplanation = sessionStorage.getItem('explanation');
 
         if (!storedSpreadsheetId || !storedProblemText) {
           alert('必要なデータが見つかりません。create-quizページからやり直してください。');
@@ -73,6 +77,12 @@ const AddExplanationPage: React.FC = () => {
         setProblemText(storedProblemText);
         setAnswerText(storedAnswerText || '');
         setLearningTopic(storedLearningTopic || '');
+
+        // 保存されている解説があれば復元
+        if (storedExplanation) {
+          setExplanation(storedExplanation);
+          explanationChatService.setExplanation(storedExplanation);
+        }
 
         // explanationChatServiceにコンテキストを設定
         explanationChatService.setProblemContext(storedProblemText, storedAnswerText || '');
@@ -87,6 +97,30 @@ const AddExplanationPage: React.FC = () => {
 
     initializePage();
   }, [router]);
+
+  // スプレッドシートデータのコールバック
+  const handleSpreadsheetDataChange = useCallback((data: DataProblemTemplateData) => {
+    console.log('Spreadsheet data updated:', data);
+    setSpreadsheetData(data);
+  }, []);
+
+  const handleGetCurrentDataRef = useCallback((getCurrentData: () => Promise<DataProblemTemplateData | null>) => {
+    getCurrentDataRef.current = getCurrentData;
+  }, []);
+
+  const fetchLatestSpreadsheetData = useCallback(async (): Promise<DataProblemTemplateData | null> => {
+    if (getCurrentDataRef.current) {
+      return await getCurrentDataRef.current();
+    }
+    return null;
+  }, []);
+
+  // スプレッドシートデータを explanationChatService と同期
+  useEffect(() => {
+    if (spreadsheetData) {
+      explanationChatService.setSpreadsheetData(spreadsheetData);
+    }
+  }, [spreadsheetData]);
 
   // Split sizes の保存
   const handleHorizontalDragEnd = (sizes: number[]) => {
@@ -189,6 +223,7 @@ const AddExplanationPage: React.FC = () => {
         sessionStorage.removeItem('problemText');
         sessionStorage.removeItem('answerText');
         sessionStorage.removeItem('learningTopic');
+        sessionStorage.removeItem('explanation');
 
         // チャットサービスの履歴もクリア
         chatService.clearHistory();
@@ -234,6 +269,8 @@ const AddExplanationPage: React.FC = () => {
           {spreadsheetId && (
             <DataSpreadsheetPanel
               userEmail={user?.email}
+              onDataChange={handleSpreadsheetDataChange}
+              onGetCurrentDataRef={handleGetCurrentDataRef}
               onError={(error) => console.error('Spreadsheet error:', error)}
             />
           )}
@@ -251,7 +288,11 @@ const AddExplanationPage: React.FC = () => {
           >
             {/* 上部: AIチャット */}
             <div style={{ height: '100%', overflow: 'hidden' }}>
-              <ExplanationChatContainer showHeader={false} />
+              <ExplanationChatContainer
+                showHeader={false}
+                spreadsheetData={spreadsheetData}
+                fetchLatestSpreadsheetData={fetchLatestSpreadsheetData}
+              />
             </div>
 
             {/* 下部: Explanation入力欄 */}
@@ -270,7 +311,13 @@ const AddExplanationPage: React.FC = () => {
               <textarea
                 ref={explanationInputRef}
                 value={explanation}
-                onChange={(e) => setExplanation(e.target.value)}
+                onChange={(e) => {
+                  const newExplanation = e.target.value;
+                  setExplanation(newExplanation);
+                  explanationChatService.setExplanation(newExplanation);
+                  // sessionStorageに保存（ページ遷移時に保持されるように）
+                  sessionStorage.setItem('explanation', newExplanation);
+                }}
                 placeholder="問題の解説を入力してください..."
                 style={{
                   flex: 1,

@@ -54,7 +54,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoa
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type your message here... (Shift+Enter for new line)"
+          placeholder="メッセージを入力してください... (Shift+Enterで改行)"
           disabled={isLoading}
           rows={1}
           style={{

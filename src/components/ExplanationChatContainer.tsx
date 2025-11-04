@@ -4,12 +4,19 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { explanationChatService } from '../services/explanationChatService';
 import { useAuth } from '../contexts/AuthContext';
+import type { DataProblemTemplateData } from '../services/gasClientService';
 
 interface ExplanationChatContainerProps {
   showHeader?: boolean;
+  spreadsheetData?: DataProblemTemplateData | null;
+  fetchLatestSpreadsheetData?: () => Promise<DataProblemTemplateData | null>;
 }
 
-export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> = ({ showHeader = true }) => {
+export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> = ({
+  showHeader = true,
+  spreadsheetData,
+  fetchLatestSpreadsheetData
+}) => {
   const { user } = useAuth();
 
   // localStorageからメッセージ履歴を読み込む
@@ -35,6 +42,13 @@ export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> =
   const [messages, setMessages] = useState<Message[]>(loadMessages);
   const [isLoading, setIsLoading] = useState(false);
 
+  // スプレッドシートデータを explanationChatService と同期
+  useEffect(() => {
+    if (spreadsheetData) {
+      explanationChatService.setSpreadsheetData(spreadsheetData);
+    }
+  }, [spreadsheetData]);
+
   // メッセージをlocalStorageに保存
   useEffect(() => {
     if (!user?.id) return;
@@ -59,6 +73,14 @@ export const ExplanationChatContainer: React.FC<ExplanationChatContainerProps> =
     setIsLoading(true);
 
     try {
+      // 送信前に最新のスプレッドシートデータを取得
+      if (fetchLatestSpreadsheetData) {
+        const latestData = await fetchLatestSpreadsheetData();
+        if (latestData) {
+          explanationChatService.setSpreadsheetData(latestData);
+        }
+      }
+
       const botResponse = await explanationChatService.sendMessage(content);
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
