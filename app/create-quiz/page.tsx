@@ -205,20 +205,26 @@ const HomePage: React.FC = () => {
           setSplitSizes(newSizes);
           try { localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify(newSizes)); } catch {}
         }}
-        style={{ height: '100vh', width: '100vw' }}
+        style={{
+          height: '100vh',
+          width: '100vw',
+          // ポップアップが開いている時は背景をブロック
+          pointerEvents: showAssignmentPopup ? 'none' : 'auto'
+        }}
       >
         <div style={{ minWidth: 300, height: '100vh' }}>
-          <ChatContainer 
-            spreadsheetData={currentSpreadsheetData} 
+          <ChatContainer
+            spreadsheetData={currentSpreadsheetData}
             fetchLatestSpreadsheetData={fetchLatestSpreadsheetData}
           />
         </div>
 
         <div style={{ minWidth: 400, height: '100vh' }}>
-          <RightPanel 
+          <RightPanel
             onSpreadsheetDataChange={handleSpreadsheetDataChange}
             onSpreadsheetCreated={handleSpreadsheetCreated}
             onGetCurrentDataRef={handleGetCurrentDataRef}
+            isBlocked={showAssignmentPopup}
           />
         </div>
       </Split>

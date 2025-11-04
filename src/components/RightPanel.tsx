@@ -29,12 +29,14 @@ interface RightPanelProps {
   onSpreadsheetDataChange?: (data: DataProblemTemplateData) => void;
   onSpreadsheetCreated?: (spreadsheetId: string, embedUrl: string) => void;
   onGetCurrentDataRef?: (getCurrentData: () => Promise<DataProblemTemplateData | null>) => void;
+  isBlocked?: boolean; // モーダルが開いている時にtrueになる
 }
 
-export const RightPanel: React.FC<RightPanelProps> = ({ 
-  onSpreadsheetDataChange, 
+export const RightPanel: React.FC<RightPanelProps> = ({
+  onSpreadsheetDataChange,
   onSpreadsheetCreated,
-  onGetCurrentDataRef 
+  onGetCurrentDataRef,
+  isBlocked = false
 }) => {
   const router = useRouter();
   const { problemData, setProblemData, spreadsheetState, setSpreadsheetState } = useProblem();
@@ -153,11 +155,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
       {/* データ整理問題スプレッドシート パネル */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <DataSpreadsheetPanel 
+        <DataSpreadsheetPanel
           onDataChange={handleSheetsDataChange}
           onSpreadsheetCreated={handleSpreadsheetCreated}
           onError={handleSheetsError}
           onGetCurrentDataRef={onGetCurrentDataRef}
+          isBlocked={isBlocked}
         />
       </div>
 

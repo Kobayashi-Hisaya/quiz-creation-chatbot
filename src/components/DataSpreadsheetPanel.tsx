@@ -9,6 +9,7 @@ interface DataSpreadsheetPanelProps {
   onSpreadsheetCreated?: (spreadsheetId: string, embedUrl: string) => void;
   onError?: (error: string) => void;
   onGetCurrentDataRef?: (getCurrentData: () => Promise<DataProblemTemplateData | null>) => void;
+  isBlocked?: boolean; // モーダルが開いている時にtrueになる
 }
 
 export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
@@ -17,7 +18,8 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
   onDataChange,
   onSpreadsheetCreated,
   onError,
-  onGetCurrentDataRef
+  onGetCurrentDataRef,
+  isBlocked = false
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState<string | null>(null);
@@ -256,16 +258,21 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
 
   // スプレッドシート表示
   return (
-    <div style={{ 
-      height: '100%', 
-      display: 'flex', 
+    <div style={{
+      height: '100%',
+      display: 'flex',
       flexDirection: 'column',
       margin: '0',
       padding: '0'
     }}>
       {/* スプレッドシート埋め込み */}
       {embedUrl && (
-        <div style={{ flex: 1, minHeight: 0, backgroundColor: 'white' }}>
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          backgroundColor: 'white',
+          position: 'relative' // オーバーレイのため
+        }}>
           <iframe
             src={embedUrl}
             style={{
@@ -275,6 +282,19 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
             }}
             title="Data Analysis Problem Spreadsheet"
           />
+          {/* モーダル表示中のブロッキングオーバーレイ */}
+          {isBlocked && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'transparent',
+              zIndex: 100,
+              pointerEvents: 'auto'
+            }} />
+          )}
         </div>
       )}
 
