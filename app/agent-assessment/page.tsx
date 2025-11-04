@@ -11,6 +11,8 @@ import type { SaveProblemData, ChatHistoryInput } from '@/services/problemServic
 import { explanationChatService } from '@/services/explanationChatService';
 import { reviewChatService } from '@/services/reviewChatService';
 import { chatService } from '@/services/chatService';
+import { assessmentService } from '@/services/assessmentService';
+import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 interface ProblemDataToSave extends SaveProblemData {
   title: string;
@@ -33,6 +35,9 @@ export default function AgentAssessmentPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [diagnosisResult, setDiagnosisResult] = useState<string | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [currentSpreadsheetData, setCurrentSpreadsheetData] = useState<DataProblemTemplateData | null>(null);
+  const [problemText, setProblemText] = useState<string>('');
+  const [answerText, setAnswerText] = useState<string>('');
   
   // 編集フィールドの状態管理
   const [editedProblemText, setEditedProblemText] = useState<string>('');
@@ -130,162 +135,132 @@ export default function AgentAssessmentPage() {
 
   // SessionStorage から問題データを取得
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem('problemDataForAssessment');
-      if (!stored) {
-        setError('問題データが見つかりません。作成画面から再度作成してください。');
-        setLoading(false);
-        return;
-      }
+    const initializeData = async () => {
+      try {
+        const stored = sessionStorage.getItem('problemDataForAssessment');
+        if (!stored) {
+          setError('問題データが見つかりません。作成画面から再度作成してください。');
+          setLoading(false);
+          return;
+        }
 
-      const data: SessionData = JSON.parse(stored);
-      setSessionData(data);
-      console.log('[AgentAssessment] 問題データ取得:', data);
-      
-      // 学習項目を取得（チャット履歴削除用）
-      const storedLearningTopic = sessionStorage.getItem('learningTopic') || data.problemData.learning_topic || '';
-      setLearningTopic(storedLearningTopic);
-      console.log('[AgentAssessment] 学習項目:', storedLearningTopic);
-      
-      // 編集フィールドを初期化
-      setEditedProblemText(data.problemData.problem_text || '');
-      setEditedCode(data.problemData.code || '');
-      setEditedExplanation(data.problemData.explanation || '');
-      setEditedChoices(data.problemData.choices || []);
-      
-      // データ取得後、自動診断を実行
-      runDiagnosis();
-    } catch (err) {
-      console.error('[AgentAssessment] SessionStorage エラー:', err);
-      setError('問題データの読み込みに失敗しました。');
-    } finally {
-      setLoading(false);
-    }
+        const data: SessionData = JSON.parse(stored);
+        setSessionData(data);
+        console.log('[AgentAssessment] 問題データ取得:', data);
+        
+        // 学習項目を取得（チャット履歴削除用）
+        const storedLearningTopic = sessionStorage.getItem('learningTopic') || data.problemData.learning_topic || '';
+        setLearningTopic(storedLearningTopic);
+        console.log('[AgentAssessment] 学習項目:', storedLearningTopic);
+        
+        // 編集フィールドを初期化
+        setEditedProblemText(data.problemData.problem_text || '');
+        setEditedCode(data.problemData.code || '');
+        setEditedExplanation(data.problemData.explanation || '');
+        setEditedChoices(data.problemData.choices || []);
+        
+        // スプレッドシートデータを取得
+        if (data.problemData.spreadsheet_id) {
+          console.log('[AgentAssessment] スプレッドシートデータ取得開始:', data.problemData.spreadsheet_id);
+          try {
+            const response = await fetch(`/api/gas/get-problem-data?spreadsheetId=${data.problemData.spreadsheet_id}`);
+            if (response.ok) {
+              const spreadsheetData = await response.json();
+              console.log('[AgentAssessment] スプレッドシートデータ取得成功:', spreadsheetData);
+              setCurrentSpreadsheetData(spreadsheetData);
+
+              // スプレッドシートから問題文と回答を取得
+              if (spreadsheetData.sheets && spreadsheetData.sheets.length > 0) {
+                const firstSheet = spreadsheetData.sheets[0];
+                if (firstSheet.problemText) {
+                  setProblemText(firstSheet.problemText);
+                  console.log('[AgentAssessment] 問題文を取得:', firstSheet.problemText);
+                }
+                if (firstSheet.answerText) {
+                  setAnswerText(firstSheet.answerText);
+                  console.log('[AgentAssessment] 回答を取得:', firstSheet.answerText);
+                }
+              }
+            } else {
+              console.warn('[AgentAssessment] スプレッドシートデータ取得失敗:', response.status);
+            }
+          } catch (err) {
+            console.error('[AgentAssessment] スプレッドシートデータ取得エラー:', err);
+          }
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('[AgentAssessment] SessionStorage エラー:', err);
+        setError('問題データの読み込みに失敗しました。');
+        setLoading(false);
+      }
+    };
+
+    initializeData();
   }, []);
 
-  // 自動診断を実行
+  // スプレッドシートデータをassessmentServiceに同期
+  useEffect(() => {
+    if (currentSpreadsheetData) {
+      assessmentService.setSpreadsheetData(currentSpreadsheetData);
+      console.log('[AgentAssessment] スプレッドシートデータをassessmentServiceに同期');
+    }
+  }, [currentSpreadsheetData]);
+
+  // 問題文と回答をassessmentServiceに同期
+  useEffect(() => {
+    if (problemText && answerText) {
+      assessmentService.setProblemContext(problemText, answerText);
+      console.log('[AgentAssessment] 問題コンテキストをassessmentServiceに同期');
+    }
+  }, [problemText, answerText]);
+
+  // 解説をassessmentServiceに同期（編集フィールドの変更を監視）
+  useEffect(() => {
+    assessmentService.setExplanation(editedExplanation);
+  }, [editedExplanation]);
+
+  // スプレッドシートデータが取得できた後に自動診断を実行
+  useEffect(() => {
+    if (currentSpreadsheetData && sessionData && problemText && answerText && !isDiagnosing && !diagnosisResult) {
+      console.log('[AgentAssessment] 全てのデータ取得完了 - 自動診断を開始');
+      runDiagnosis();
+    }
+  }, [currentSpreadsheetData, sessionData, problemText, answerText]);
+
+  // 自動診断を実行（同期されたデータを使用）
   const runDiagnosis = async () => {
+    if (!sessionData?.problemData) {
+      console.error('[AgentAssessment] 問題データが見つかりません');
+      return;
+    }
+
     setIsDiagnosing(true);
     try {
-      // スプシ①（作業用）のデータを取得して診断
-      let spreadsheetData = null;
-      if (sessionData?.problemData?.spreadsheet_id) {
-        try {
-          const sheetResponse = await fetch(
-            `/api/gas/get-problem-data?spreadsheetId=${sessionData.problemData.spreadsheet_id}`
-          );
-          if (sheetResponse.ok) {
-            spreadsheetData = await sheetResponse.json();
-            console.log('[AgentAssessment] スプレッドシート①データ取得:', spreadsheetData);
-          }
-        } catch (error) {
-          console.warn('[AgentAssessment] スプレッドシートデータ取得エラー:', error);
-        }
-      }
+      console.log('[AgentAssessment] 診断開始: assessmentServiceを使用（同期されたデータ）');
+      console.log('[AgentAssessment] 問題文:', problemText);
+      console.log('[AgentAssessment] 回答:', answerText);
+      console.log('[AgentAssessment] 解説:', editedExplanation);
+      console.log('[AgentAssessment] スプレッドシートデータ:', currentSpreadsheetData);
 
-      console.log('[AgentAssessment] 診断開始: /api/chat にリクエスト送信');
-      
-      // システムプロンプトを構築
-      const systemPrompt = `##命令
-あなたは，情報系の大学に勤務している大学教員です．今から，作問学習において指導学生が作成した，プログラミングに関する作問（問題文・解答・解説）を提示します．その作問を診断してください．その後，診断結果に基づいたフィードバックをください．診断の詳細は以下にあるプロセスに則ってください．
+      // 同期されたデータを使用して診断を実行（引数なし）
+      const diagnosisText = await assessmentService.runDiagnosis();
 
-##プロセス
-入力を受け取り、以下の手順に従って、学生に対する自然な応答を生成しなさい． 「#診断項目」「#診断規則」に則った診断をしなさい。
-
-1 問題データを読取り、以下の【#診断項目】に沿って作問を診断しなさい
-2. 以下の2つの出力を生成しなさい、出力はmarkdown形式で整形しなさい。 
-  a. 診断結果：各診断項目における診断結果 
-  b. フィードバック：学生が今後どのように修正すればいいか、今後の指針を提示してください。 
-
-##診断項目：診断基準（何を満たすべきか？）
-Ⅰ. 誤字：作問中に誤字（同音異義語の変換ミス）がない
-Ⅱ. 脱字：作問中に脱字（文字の不足）がない
-Ⅲ. 衍字：作問中に衍字（余分な文字）がない
-Ⅳ. 用語の統一：作問中で用語の表記ゆれがない。呼称が一貫している。
-
-##診断規則
-Ⅰ~Ⅳでは、複数の誤りを検出した場合は、全ての改善点を漏れなく指摘すること。指摘漏れがないように、診断基準ごとに必ず再チェックをしなさい。
-改善点を指摘する場合は，必ず根拠を併せて述べること。
-指摘の際は、【具体的な指摘箇所】と【修正案を提示】しなさい。
-例：問題文〇行目の『△△』を『✖✖』に変更してください
-　　解答〇〇行目の『△△』の部分に余分な文字が入っています
-　　解説文〇行目の『△△』が誤字です。『✖』を追加してください`;
-
-      // 問題データを構築
-      let problemContent = `【問題文】\n${sessionData?.problemData?.problem_text || 'なし'}\n\n`;
-      
-      if (sessionData?.problemData?.choices && sessionData.problemData.choices.length > 0) {
-        problemContent += `【選択肢】\n${sessionData.problemData.choices.map((c: any, i: number) => `${String.fromCharCode(65 + i)}. ${c.text}${c.isCorrect ? ' (正解)' : ''}`).join('\n')}\n\n`;
-      }
-      
-      problemContent += `【解説】\n${sessionData?.problemData?.explanation || 'なし'}`;
-      
-      // スプレッドシートデータがある場合は追加
-      if (spreadsheetData && spreadsheetData.sheets && spreadsheetData.sheets.length > 0) {
-        const firstSheet = spreadsheetData.sheets[0];
-        if (firstSheet.tableData) {
-          problemContent += '\n\n【スプレッドシートデータ】\n';
-          firstSheet.tableData.slice(0, 15).forEach((row: any[], index: number) => {
-            if (Array.isArray(row)) {
-              const rowText = row.join(' | ');
-              if (rowText.trim()) {
-                problemContent += `行${index + 1}: ${rowText}\n`;
-              }
-            }
-          });
-        }
-      }
-
-      // メッセージを構築
-      const messages = [
-        {
-          role: 'user',
-          content: problemContent
-        }
-      ];
-
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: messages,
-          systemPrompt: systemPrompt,
-          model: 'gpt-4o-mini',
-          temperature: 1.0,
-          max_tokens: 10000,
-          reasoning_effort: 'high'
-        }),
-      });
-
-      console.log('[AgentAssessment] レスポンス受信:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[AgentAssessment] エラーレスポンス:', errorText);
-        throw new Error(`診断リクエストが失敗しました (Status: ${response.status})`);
-      }
-
-      const data = await response.json();
-      console.log('[AgentAssessment] レスポンスJSON:', data);
-      
-      // レスポンスの形式に応じて処理
-      const diagnosisText = data.content || data.reply || 'AI応答が得られませんでした。';
       setDiagnosisResult(diagnosisText);
-      console.log('[AgentAssessment] 診断結果:', diagnosisText);
+      console.log('[AgentAssessment] 診断完了');
     } catch (err) {
       console.error('[AgentAssessment] 診断エラー:', err);
-      setDiagnosisResult('診断処理中にエラーが発生しました。詳細はコンソールを確認してください。');
+      const errorMessage = err instanceof Error ? err.message : '診断処理中にエラーが発生しました。';
+      setDiagnosisResult(errorMessage);
     } finally {
       setIsDiagnosing(false);
     }
   };
 
+
+
+  
   // 問題保存ボタンクリック（修正後の解説を保存してダッシュボードへ）
   const handleSaveProblem = async () => {
     if (!sessionData || !user) {

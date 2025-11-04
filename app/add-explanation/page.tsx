@@ -11,7 +11,6 @@ import { reviewChatService } from '@/services/reviewChatService';
 import { chatService } from '@/services/chatService';
 import { useProblem } from '@/contexts/ProblemContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { saveProblem } from '@/services/problemService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const HORIZONTAL_SPLIT_KEY = 'add-explanation-horizontal-split';
