@@ -29,12 +29,14 @@ interface RightPanelProps {
   onSpreadsheetDataChange?: (data: DataProblemTemplateData) => void;
   onSpreadsheetCreated?: (spreadsheetId: string, embedUrl: string) => void;
   onGetCurrentDataRef?: (getCurrentData: () => Promise<DataProblemTemplateData | null>) => void;
+  isBlocked?: boolean; // モーダルが開いている時にtrueになる
 }
 
-export const RightPanel: React.FC<RightPanelProps> = ({ 
-  onSpreadsheetDataChange, 
+export const RightPanel: React.FC<RightPanelProps> = ({
+  onSpreadsheetDataChange,
   onSpreadsheetCreated,
-  onGetCurrentDataRef 
+  onGetCurrentDataRef,
+  isBlocked = false
 }) => {
   const router = useRouter();
   const { problemData, setProblemData, spreadsheetState, setSpreadsheetState } = useProblem();
@@ -48,10 +50,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     // 既存のlanguageとlearningTopicは保持する（review-learning-topicで設定された値を消さないため）
     setProblemData({
       problem: data.problemText || '',
-      // GAS の answerText を frontend の problemData.code にマッピングする (Aプラン)
       code: data.code || data.answerText || '',
-      language: problemData.language || '', // 既存の値を保持
-      learningTopic: problemData.learningTopic || '', // 既存の値を保持（重要！）
+      language: problemData.language || '',
+      learningTopic: problemData.learningTopic || '',
+      predicted_accuracy: null,
+      predicted_answerTime: null,
     });
 
     // 親コンポーネント（HomePage）にもデータ変更を通知
@@ -152,11 +155,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
       {/* データ整理問題スプレッドシート パネル */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <DataSpreadsheetPanel 
+        <DataSpreadsheetPanel
           onDataChange={handleSheetsDataChange}
           onSpreadsheetCreated={handleSpreadsheetCreated}
           onError={handleSheetsError}
           onGetCurrentDataRef={onGetCurrentDataRef}
+          isBlocked={isBlocked}
         />
       </div>
 

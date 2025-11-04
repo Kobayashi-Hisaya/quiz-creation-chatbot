@@ -42,6 +42,27 @@ export interface GetDataResponse {
   lastModified: string;
 }
 
+export interface AssessmentProblemData {
+  problemText: string;
+  code?: string | null;
+  language?: string | null;
+  learningTopic?: string;
+  codeWithBlanks?: string;
+  choices?: Array<{ option: string; text: string; isCorrect: boolean }>;
+  explanation?: string | null;
+  title?: string | null;
+  expectedAccuracy?: number | null;
+  expectedAnswerTime?: number | null;
+}
+
+export interface AssessmentSheetDataResponse {
+  expectedAccuracy: number | null;
+  expectedAnswerTime: number | null;
+  actualAccuracy?: number | null;
+  actualAnswerTime?: number | null;
+  [key: string]: unknown;
+}
+
 class GASClientService {
   /**
    * 新しいデータ整理問題用スプレッドシートを作成
@@ -208,6 +229,99 @@ class GASClientService {
       return false;
     }
   }
+
+  /**
+   * 問題評価用スプレッドシートを作成
+   */
+  async createAssessmentSheet(userEmail: string, sessionId: string, problemData: AssessmentProblemData): Promise<CreateSheetResponse | null> {
+    try {
+      const response = await fetch('/api/gas/create-assessment-sheet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userEmail, 
+          sessionId,
+          problemData
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create assessment sheet');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating assessment sheet:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 問題評価用スプレッドシートのデータを取得
+   */
+  async getAssessmentSheetData(spreadsheetId: string): Promise<AssessmentSheetDataResponse | null> {
+    try {
+      const response = await fetch(`/api/gas/get-assessment-data?spreadsheetId=${encodeURIComponent(spreadsheetId)}`);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch assessment data');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching assessment data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 診断用にスプレッドシートをコピー
+   * 目的: 修正前のデータを保持したまま、修正後のデータを別カラムに保存するため
+   * 
+   * @param originalSpreadsheetId - コピー元のスプレッドシートID
+   * @param userEmail - ユーザーのメールアドレス
+   * @param sessionId - セッションID
+   */
+  async copySpreadsheetForAssessment(
+    originalSpreadsheetId: string,
+    userEmail: string,
+    sessionId: string
+  ): Promise<{ spreadsheetId: string; spreadsheetUrl: string; editUrl: string } | null> {
+    try {
+      console.log('[GASClient] Copying spreadsheet for assessment:', originalSpreadsheetId);
+      
+      const response = await fetch('/api/gas/copy-for-assessment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          originalSpreadsheetId,
+          userEmail,
+          sessionId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to copy spreadsheet for assessment');
+      }
+
+      const result = await response.json();
+      console.log('[GASClient] Spreadsheet copied successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('[GASClient] Error copying spreadsheet for assessment:', error);
+      return null;
+    }
+  }
+
+  // updateAssessmentSheet は削除
+  // 理由: 新仕様ではスプシ①で直接編集し、スプシ②はバックアップ専用で編集しない
 }
 
 // シングルトンインスタンス

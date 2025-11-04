@@ -4,6 +4,7 @@ export interface Profile {
   id: string; // UUID, references auth.users(id)
   email: string;
   is_admin: boolean;
+  group_id?: number | null; // グループID（1,2,3,7など）
   created_at: string; // ISO 8601 timestamp
 }
 
@@ -18,6 +19,11 @@ export interface Problem {
   code_with_blanks: string | null;
   choices: QuizChoice[] | null; // JSONB
   explanation: string | null;
+  modified_explanation: string | null; // 修正後の解説
+  title: string | null;
+  predicted_accuracy: number | null; // 予想正答率（0-100%）
+  predicted_answerTime: number | null; // 予想解答時間（秒）
+  assessment_spreadsheet_id: string | null; // 自動診断用スプレッドシート ID
   // データ整理問題用フィールド
   spreadsheet_url: string | null;
   spreadsheet_id: string | null;
@@ -38,7 +44,7 @@ export interface ChatHistory {
   id: string; // UUID
   problem_id: string; // UUID, references problems(id)
   user_id: string; // UUID, references auth.users(id)
-  chat_type: 'creation' | 'explanation' | 'review';
+  chat_type: 'creation' | 'explanation' | 'review' | 'assessment' | 'suggestion';
   messages: ChatMessage[]; // JSONB
   created_at: string; // ISO 8601 timestamp
 }
@@ -47,4 +53,18 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp?: string;
+}
+
+export interface ProblemComment {
+  id: string; // UUID
+  problem_id: string; // UUID, references problems(id)
+  user_id: string; // UUID, references auth.users(id)
+  content: string;
+  created_at: string; // ISO 8601 timestamp
+  updated_at: string; // ISO 8601 timestamp
+  is_edited: boolean; // 編集済みフラグ
+}
+
+export interface ProblemCommentWithUser extends ProblemComment {
+  user_email?: string; // from profiles.email
 }

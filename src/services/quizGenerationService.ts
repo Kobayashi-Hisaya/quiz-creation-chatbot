@@ -13,8 +13,27 @@ class QuizGenerationService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `API request failed: ${response.statusText}`);
+        // まず生テキストを取得してからJSONにパースする（空のJSONや非JSON応答にも対応）
+        const text = await response.text();
+
+        // 試みてJSONを解析
+        let errorData: { error?: string; raw?: string } | null = null;
+        try {
+          errorData = JSON.parse(text);
+        } catch {
+          console.error('Quiz generation API response (non-JSON):', text);
+          throw new Error(`API request failed: ${response.statusText} - ${text}`);
+        }
+
+        // 空のオブジェクトが返るケースをハンドル
+        if (!errorData || Object.keys(errorData).length === 0) {
+          console.error('Quiz generation API returned empty JSON:', text);
+          throw new Error(`API request failed: ${response.statusText} - ${text}`);
+        }
+
+        console.error('Quiz generation API error:', errorData);
+        const rawInfo = errorData.raw ? `\nRaw response: ${errorData.raw}` : '';
+        throw new Error((errorData.error || `API request failed: ${response.statusText}`) + rawInfo);
       }
 
       const data = await response.json() as AutoGenerationResponse;

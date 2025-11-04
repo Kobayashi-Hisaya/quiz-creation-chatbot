@@ -77,11 +77,15 @@ export async function POST(request: NextRequest) {
     const response = await model.invoke(messages);
     const responseText = response.content as string;
 
+  // デバッグ: モデルの生応答をサーバー側に出力（クライアントに空のJSONが返る問題の調査用）
+  console.debug('AI raw response text:', responseText);
+
     // JSON部分を抽出
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      // デバッグ用に生レスポンスを返す
       return NextResponse.json(
-        { error: "AIの応答からJSONを抽出できませんでした" },
+        { error: "AIの応答からJSONを抽出できませんでした", raw: responseText },
         { status: 500 }
       );
     }
@@ -90,15 +94,16 @@ export async function POST(request: NextRequest) {
 
     // バリデーション
     if (!parsedResponse.codeWithBlanks.includes("___BLANK___")) {
+      // 生レスポンスを付与して原因特定を容易にする
       return NextResponse.json(
-        { error: "空欄箇所が正しく設定されていません" },
+        { error: "空欄箇所が正しく設定されていません", raw: responseText, parsed: parsedResponse },
         { status: 500 }
       );
     }
 
     if (!parsedResponse.choices || parsedResponse.choices.length !== 4) {
       return NextResponse.json(
-        { error: "選択肢は4つである必要があります" },
+        { error: "選択肢は4つである必要があります", raw: responseText, parsed: parsedResponse },
         { status: 500 }
       );
     }
@@ -106,7 +111,7 @@ export async function POST(request: NextRequest) {
     const correctChoices = parsedResponse.choices.filter((choice) => choice.isCorrect);
     if (correctChoices.length !== 1) {
       return NextResponse.json(
-        { error: "正答は1つである必要があります" },
+        { error: "正答は1つである必要があります", raw: responseText, parsed: parsedResponse },
         { status: 500 }
       );
     }

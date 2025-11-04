@@ -5,12 +5,12 @@ import Split from 'react-split';
 import '@/styles/split.css';
 import { DataSpreadsheetPanel } from '@/components/DataSpreadsheetPanel';
 import { ExplanationChatContainer } from '@/components/ExplanationChatContainer';
+import { TitleInputPopup } from '@/components/TitleInputPopup';
 import { explanationChatService } from '@/services/explanationChatService';
 import { reviewChatService } from '@/services/reviewChatService';
 import { chatService } from '@/services/chatService';
 import { useProblem } from '@/contexts/ProblemContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { saveProblem } from '@/services/problemService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const HORIZONTAL_SPLIT_KEY = 'add-explanation-horizontal-split';
@@ -42,8 +42,10 @@ const AddExplanationPage: React.FC = () => {
   const [answerText, setAnswerText] = useState<string>('');
   const [learningTopic, setLearningTopic] = useState<string>('');
   const [explanation, setExplanation] = useState<string>('');
+  const [problemTitle, setProblemTitle] = useState<string>(''); // タイトルを保持
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showTitlePopup, setShowTitlePopup] = useState(false);
   const [spreadsheetData, setSpreadsheetData] = useState<DataProblemTemplateData | null>(null);
 
   const [horizontalSizes, setHorizontalSizes] = useState<number[]>(
@@ -64,8 +66,15 @@ const AddExplanationPage: React.FC = () => {
         const storedSpreadsheetId = sessionStorage.getItem('currentSpreadsheetId');
         const storedProblemText = sessionStorage.getItem('problemText');
         const storedAnswerText = sessionStorage.getItem('answerText');
+        const storedPredictedAccuracy = sessionStorage.getItem('predicted_accuracy');
+        const storedPredictedAnswerTime = sessionStorage.getItem('predicted_answerTime');
+
+        console.log('=== add-explanation ページ初期化 ===');
+        console.log('storedPredictedAccuracy:', storedPredictedAccuracy);
+        console.log('storedPredictedAnswerTime:', storedPredictedAnswerTime);
         const storedLearningTopic = sessionStorage.getItem('learningTopic');
         const storedExplanation = sessionStorage.getItem('explanation');
+        const storedTitle = sessionStorage.getItem('problemTitle'); // タイトルを復元
 
         if (!storedSpreadsheetId || !storedProblemText) {
           alert('必要なデータが見つかりません。create-quizページからやり直してください。');
@@ -76,7 +85,12 @@ const AddExplanationPage: React.FC = () => {
         setSpreadsheetId(storedSpreadsheetId);
         setProblemText(storedProblemText);
         setAnswerText(storedAnswerText || '');
-        setLearningTopic(storedLearningTopic || '');
+
+        // 保存されているタイトルがあれば復元
+        if (storedTitle) {
+          setProblemTitle(storedTitle);
+          console.log('[add-explanation] タイトルを復元:', storedTitle);
+        }
 
         // 保存されている解説があれば復元
         if (storedExplanation) {
@@ -134,9 +148,8 @@ const AddExplanationPage: React.FC = () => {
   };
 
 
-  // 問題を保存してdashboardに戻る
-  const handleSaveProblem = async () => {
-    // 解説の入力チェック
+  // 自動診断前にタイトル入力を促す
+  const handleAutodiagnosis = async () => {
     if (!explanation.trim()) {
       const confirmed = window.confirm('解説が入力されていません。このまま保存しますか？');
       if (!confirmed) return;
@@ -154,10 +167,36 @@ const AddExplanationPage: React.FC = () => {
       return;
     }
 
-    setIsSaving(true);
+    // タイトル入力ポップアップを表示
+    setShowTitlePopup(true);
+  };
+
+  // タイトル入力後の処理
+  const handleTitleSubmit = async (title: string) => {
+    console.log('=== タイトル入力完了 ===');
+    console.log('title:', title);
+    setShowTitlePopup(false);
+
+    // タイトルをstateとSessionStorageに保存
+    setProblemTitle(title);
+    sessionStorage.setItem('problemTitle', title);
+    console.log('[add-explanation] タイトルをSessionStorageに保存:', title);
 
     try {
-      // 保存するデータを準備
+      setIsSaving(true);
+
+      // sessionStorage から予想データを取得
+      const storedPredictedAccuracy = sessionStorage.getItem('predicted_accuracy');
+      const storedPredictedAnswerTime = sessionStorage.getItem('predicted_answerTime');
+      
+      const predicted_accuracy = storedPredictedAccuracy ? parseInt(storedPredictedAccuracy, 10) : null;
+      const predicted_answerTime = storedPredictedAnswerTime ? parseInt(storedPredictedAnswerTime, 10) : null;
+
+      console.log('=== 保存するデータの確認 ===');
+      console.log('predicted_accuracy:', predicted_accuracy);
+      console.log('predicted_answerTime:', predicted_answerTime);
+
+      // 【ステップ1】保存するデータを準備（スプシ②IDは後で更新）
       const saveData = {
         problem_text: problemText,
         code: problemData.code || answerText,
@@ -166,11 +205,14 @@ const AddExplanationPage: React.FC = () => {
         code_with_blanks: null,
         choices: null,
         explanation: explanation.trim() || null,
+        title: title,
         spreadsheet_url: spreadsheetState?.embedUrl || null,
         spreadsheet_id: spreadsheetId,
         problem_category: '',
         session_id: null,
         table_data: null,
+        predicted_accuracy: predicted_accuracy,
+        predicted_answerTime: predicted_answerTime,
       };
 
       // チャット履歴を取得（creation, explanation, review chat履歴を含める）
@@ -189,64 +231,63 @@ const AddExplanationPage: React.FC = () => {
         },
       ];
 
-      // Supabaseに保存
-      const result = await saveProblem(saveData, chatHistories, {
-        id: user.id,
-        email: user.email || undefined,
-      });
+      // 【ステップ2】スプシ①をコピーしてスプシ②を作成（オプション）
+      let assessmentSpreadsheetId: string | null = null;
+      
+      if (user?.email && spreadsheetId) {
+        try {
+          console.log('[add-explanation] スプシ①をコピーしてスプシ②を作成中...', spreadsheetId);
+          
+          const { gasClientService } = await import('@/services/gasClientService');
+          const copyResult = await gasClientService.copySpreadsheetForAssessment(
+            spreadsheetId, // スプシ①のID
+            user.email,
+            `assessment-${Date.now()}`
+          );
 
-      if (result.success) {
-        alert('問題を保存しました！');
-
-        // localStorageから各種チャット履歴をクリア
-        if (user?.id) {
-          // review chat履歴のクリア
-          if (learningTopic) {
-            const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
-            localStorage.removeItem(reviewStorageKey);
-            console.log(`localStorage removed: ${reviewStorageKey}`);
+          if (copyResult && copyResult.spreadsheetId) {
+            assessmentSpreadsheetId = copyResult.spreadsheetId; // スプシ②のID
+            console.log('[add-explanation] スプシ②作成完了:', assessmentSpreadsheetId);
+            console.log('スプシ②のURL:', copyResult.spreadsheetUrl);
+          } else {
+            console.error('[add-explanation] スプレッドシートのコピーに失敗');
           }
-
-          // explanation chat履歴のクリア
-          const explanationStorageKey = `explanation-chat-messages:${user.id}`;
-          localStorage.removeItem(explanationStorageKey);
-          console.log(`localStorage removed: ${explanationStorageKey}`);
-
-          // chat (問題作成チャット) 履歴のクリア
-          const chatStorageKey = `chatMessages:${user.id}:${learningTopic}`;
-          localStorage.removeItem(chatStorageKey);
-          console.log(`localStorage removed: ${chatStorageKey}`);
+        } catch (error) {
+          console.error('[add-explanation] スプレッドシートコピーエラー:', error);
+          // コピー失敗してもページ遷移は続行（診断機能が使えないだけ）
         }
-
-        // sessionStorageをクリア
-        sessionStorage.removeItem('currentSpreadsheetId');
-        sessionStorage.removeItem('problemText');
-        sessionStorage.removeItem('answerText');
-        sessionStorage.removeItem('learningTopic');
-        sessionStorage.removeItem('explanation');
-
-        // チャットサービスの履歴もクリア
-        chatService.clearHistory();
-        reviewChatService.clearHistory();
-        explanationChatService.clearHistory();
-
-        // 学習項目選択状態をクリア（次回作成時に再度TopicSelectorを表示）
-        clearTopicSelection();
-
-        // スプレッドシート状態をクリア（次回作成時に新しいスプレッドシートを作成）
-        clearPersistedSpreadsheet();
-
-        // dashboardに遷移
-        router.push('/dashboard');
-      } else {
-        throw new Error(result.error || '保存に失敗しました');
       }
+
+      // 【ステップ3】SessionStorage に問題データを保存（DB保存は/agent-assessmentで実行）
+      const sessionData = {
+        problemData: {
+          ...saveData,
+          assessment_spreadsheet_id: assessmentSpreadsheetId // スプシ②のIDを保存（nullの場合もあり）
+        },
+        chatHistories: chatHistories,
+      };
+
+      sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
+      console.log('[add-explanation] SessionStorageに保存完了。/agent-assessmentに遷移します');
+
+      // ブラウザバック対応のため、SessionStorageデータは削除せずに保持
+      // currentSpreadsheetId, problemText, answerText, problemTitle 等は全て保持
+      // これらのデータは /agent-assessment で問題保存時に削除される
+
+      // agent-assessment ページに遷移（DB保存はここで行う）
+      router.push('/agent-assessment');
     } catch (error) {
       console.error('保存エラー:', error);
-      alert('問題の保存に失敗しました。もう一度お試しください。');
+      const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました';
+      alert(`問題の保存に失敗しました：${errorMessage}\n\nしばらく待ってからもう一度お試しください。`);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleTitleCancel = () => {
+    console.log('=== タイトル入力キャンセル ===');
+    setShowTitlePopup(false);
   };
 
   if (!isInitialized) {
@@ -259,6 +300,12 @@ const AddExplanationPage: React.FC = () => {
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <TitleInputPopup
+        isOpen={showTitlePopup}
+        onSubmit={handleTitleSubmit}
+        onCancel={handleTitleCancel}
+        initialTitle={problemTitle}
+      />
       <Split
         className="split-horizontal"
         sizes={horizontalSizes}
@@ -349,7 +396,7 @@ const AddExplanationPage: React.FC = () => {
                   ← 問題作成画面に戻る
                 </button>
                 <button
-                  onClick={handleSaveProblem}
+                  onClick={handleAutodiagnosis}
                   disabled={isSaving}
                   style={{
                     padding: '5px 10px',
@@ -362,7 +409,7 @@ const AddExplanationPage: React.FC = () => {
                     cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSaving ? '保存中...' : '問題を保存'}
+                  {isSaving ? '保存中（最大2分）...' : '自動診断'}
                 </button>
               </div>
             </div>

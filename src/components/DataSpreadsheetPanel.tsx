@@ -9,6 +9,7 @@ interface DataSpreadsheetPanelProps {
   onSpreadsheetCreated?: (spreadsheetId: string, embedUrl: string) => void;
   onError?: (error: string) => void;
   onGetCurrentDataRef?: (getCurrentData: () => Promise<DataProblemTemplateData | null>) => void;
+  isBlocked?: boolean; // モーダルが開いている時にtrueになる
 }
 
 export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
@@ -17,7 +18,8 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
   onDataChange,
   onSpreadsheetCreated,
   onError,
-  onGetCurrentDataRef
+  onGetCurrentDataRef,
+  isBlocked = false
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState<string | null>(null);
@@ -29,14 +31,20 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
   const [restorationAttempted, setRestorationAttempted] = useState(false);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
   const [isSpreadsheetRestored, setIsSpreadsheetRestored] = useState(false);
+  const [hasCreatedSheet, setHasCreatedSheet] = useState(false); // シート作成済みフラグ
 
   const { spreadsheetState, setSpreadsheetState } = useProblem();
 
   // 新しいデータ整理問題用スプレッドシートを作成
   const createNewSheet = useCallback(async () => {
-    if (isCreatingSheet) return; // 既に作成中の場合は何もしない
+    if (isCreatingSheet || hasCreatedSheet) {
+      console.log('[DataSpreadsheetPanel] スプレッドシート作成スキップ（既に作成中または作成済み）');
+      return; // 既に作成中または作成済みの場合は何もしない
+    }
     
+    console.log('[DataSpreadsheetPanel] スプレッドシート作成開始');
     setIsCreatingSheet(true);
+    setHasCreatedSheet(true); // 作成開始時にフラグを立てる（2重作成防止）
     setIsLoading(true);
     setError(null);
 
@@ -72,7 +80,7 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
       setIsLoading(false);
       setIsCreatingSheet(false);
     }
-  }, [currentSessionId, userEmail, onSpreadsheetCreated, onError, setSpreadsheetState, isCreatingSheet]);
+  }, [currentSessionId, userEmail, onSpreadsheetCreated, onError, setSpreadsheetState, isCreatingSheet, hasCreatedSheet]);
 
   // createNewSheetのrefを作成（useEffectの依存配列から除外するため）
   const createNewSheetRef = useRef(createNewSheet);
@@ -120,26 +128,30 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
 
     // If we have a persisted spreadsheet from ProblemContext, restore it instead of creating a new one.
     if (spreadsheetState?.spreadsheetId && !isSpreadsheetRestored) {
+      console.log('[DataSpreadsheetPanel] 既存のスプレッドシートを復元:', spreadsheetState.spreadsheetId);
       setCurrentSpreadsheetId(spreadsheetState.spreadsheetId);
       setEmbedUrl(spreadsheetState.embedUrl ?? null);
       setIsConnected(true);
       setIsSpreadsheetRestored(true);
+      setHasCreatedSheet(true); // 復元時もフラグを立てる（新規作成を防ぐ）
       return;
     }
 
-    // Only create if: no saved sheet AND not restored yet
+    // Only create if: no saved sheet AND not restored yet AND not created yet
     if (
       spreadsheetState === null &&
       !isSpreadsheetRestored &&
       !isConnected &&
       !isLoading &&
       !error &&
-      !isCreatingSheet
+      !isCreatingSheet &&
+      !hasCreatedSheet // 作成済みフラグも確認
     ) {
+      console.log('[DataSpreadsheetPanel] 新規スプレッドシート作成をトリガー');
       createNewSheetRef.current();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spreadsheetState, isLoading, error, isCreatingSheet]);
+  }, [spreadsheetState, isLoading, error, isCreatingSheet, hasCreatedSheet]);
 
   // 既存スプレッドシートのデータ復元（1回のみ実行）
   useEffect(() => {
@@ -246,16 +258,21 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
 
   // スプレッドシート表示
   return (
-    <div style={{ 
-      height: '100%', 
-      display: 'flex', 
+    <div style={{
+      height: '100%',
+      display: 'flex',
       flexDirection: 'column',
       margin: '0',
       padding: '0'
     }}>
       {/* スプレッドシート埋め込み */}
       {embedUrl && (
-        <div style={{ flex: 1, minHeight: 0, backgroundColor: 'white' }}>
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          backgroundColor: 'white',
+          position: 'relative' // オーバーレイのため
+        }}>
           <iframe
             src={embedUrl}
             style={{
@@ -265,6 +282,19 @@ export const DataSpreadsheetPanel: React.FC<DataSpreadsheetPanelProps> = ({
             }}
             title="Data Analysis Problem Spreadsheet"
           />
+          {/* モーダル表示中のブロッキングオーバーレイ */}
+          {isBlocked && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'transparent',
+              zIndex: 100,
+              pointerEvents: 'auto'
+            }} />
+          )}
         </div>
       )}
 

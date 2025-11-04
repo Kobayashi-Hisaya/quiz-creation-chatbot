@@ -10,6 +10,7 @@ import { AutoGenerationMode } from '@/components/AutoGenerationMode';
 import { ManualCreationMode } from '@/components/ManualCreationMode';
 import { ExplanationChatContainer } from '@/components/ExplanationChatContainer';
 import { ModeChangeConfirmDialog } from '@/components/ModeChangeConfirmDialog';
+import { TitleInputPopup } from '@/components/TitleInputPopup';
 import type { AutoGenerationResponse } from '@/types/quiz';
 import type * as monacoEditor from 'monaco-editor';
 import { chatService } from '@/services/chatService';
@@ -52,6 +53,8 @@ const QuizCreationPage: React.FC = () => {
   const [manualExplanation, setManualExplanation] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true);
+  const [showTitlePopup, setShowTitlePopup] = useState(false);
+  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monacoEditor | null>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -250,18 +253,79 @@ const QuizCreationPage: React.FC = () => {
     }
 
     console.log('=== バリデーション通過 ===');
-    setIsSaving(true);
+    
+    // バリデーション成功後、タイトル入力ポップアップを表示
+    // 保存用データを準備
+    const problemToSave: SaveProblemData = {
+      problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
+      code: problemData.code,
+      language: problemData.language,
+      learning_topic: learningTopic || null,
+      code_with_blanks: finalCodeWithBlanks || null,
+      choices: finalChoices,
+      explanation: finalExplanation,
+      title: null,  // タイトル入力待ち
+    };
+
+    setPendingTitle(null);
+    setShowTitlePopup(true);
+  };
+
+  // SessionStorageから復元（agent-assessmentから戻ってきた場合）
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('problemDataForAssessment');
+      if (stored) {
+        const sessionData = JSON.parse(stored);
+        const { problemData: savedProblemData, chatHistories } = sessionData;
+        
+        console.log('[CreateMCQ] SessionStorageから復元:', sessionData);
+        
+        // 状態を復元
+        setCreationMode(savedProblemData.language ? 'auto' : 'manual');
+        setExplanation(savedProblemData.explanation || '');
+        setCodeWithBlanks(savedProblemData.code_with_blanks || problemData.code);
+        setManualExplanation(savedProblemData.explanation || '');
+        setManualChoices(savedProblemData.choices || []);
+        setEditedProblem(savedProblemData.problem_text || problemData.problem);
+        
+        // 復元完了をログ出力
+        console.log('[CreateMCQ] 状態を復元しました');
+      }
+    } catch (err) {
+      console.error('[CreateMCQ] SessionStorage復元エラー:', err);
+    }
+  }, []); // マウント時のみ実行
+
+  const handleTitleSubmit = async (title: string) => {
+    console.log('=== タイトル入力完了 ===');
+    console.log('title:', title);
+    setShowTitlePopup(false);
 
     try {
-      // 問題データを準備
+      setIsSaving(true);
+
+      // finalExplanation と finalChoices を再構築
+      const finalExplanation = creationMode === 'auto' ? explanation : manualExplanation;
+      const finalChoices = creationMode === 'auto' ? generatedQuiz?.choices : manualChoices;
+      const finalCodeWithBlanks = creationMode === 'auto' ? generatedQuiz?.codeWithBlanks : codeWithBlanks;
+
+      // ProblemContextから作問課題データを取得
+      const predicted_accuracy = problemData.predicted_accuracy;
+      const predicted_answerTime = problemData.predicted_answerTime;
+
+      // 問題データを準備（title、predicted_accuracy、predicted_answerTime を含める）
       const problemToSave: SaveProblemData = {
         problem_text: creationMode === 'manual' ? editedProblem : problemData.problem,
         code: problemData.code,
         language: problemData.language,
         learning_topic: learningTopic || null,
         code_with_blanks: finalCodeWithBlanks || null,
-        choices: finalChoices,
+        choices: finalChoices || [],
         explanation: finalExplanation,
+        title: title,
+        predicted_accuracy: predicted_accuracy,
+        predicted_answerTime: predicted_answerTime,
       };
 
       console.log('=== 保存データ準備完了 ===');
@@ -294,62 +358,68 @@ const QuizCreationPage: React.FC = () => {
       console.log('=== Supabaseに保存開始 ===');
       console.log('chatHistories:', chatHistories);
 
-      // Supabaseに保存
-      const userInfo = user ? { id: user.id, email: user.email } : undefined;
-      console.log('=== ユーザー情報を渡して保存 ===');
-      console.log('userInfo:', userInfo);
-      const result = await saveProblem(problemToSave, chatHistories, userInfo);
+      // Assessment spreadsheet を作成
+      console.log('=== Assessment Spreadsheet 作成開始 ===');
+      let assessmentSpreadsheetId: string | null = null;
+      
+      if (user?.email) {
+        try {
+          const assessmentResponse = await fetch('/api/gas/create-assessment-sheet', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userEmail: user.email,
+              sessionId: `assessment-${Date.now()}`,
+              problemData: {
+                title: title,
+                problem_text: problemToSave.problem_text,
+                explanation: problemToSave.explanation,
+                code: problemToSave.code,
+                language: problemToSave.language,
+                learning_topic: problemToSave.learning_topic,
+                predicted_accuracy: problemToSave.predicted_accuracy,
+                predicted_answerTime: problemToSave.predicted_answerTime,
+                choices: problemToSave.choices
+              }
+            })
+          });
 
-      console.log('=== 保存結果 ===');
-      console.log('result:', result);
+          if (assessmentResponse.ok) {
+            const assessmentResult = await assessmentResponse.json();
+            assessmentSpreadsheetId = assessmentResult.spreadsheet.spreadsheetId;
+            console.log('=== Assessment Spreadsheet 作成完了 ===');
+            console.log('assessmentSpreadsheetId:', assessmentSpreadsheetId);
+          } else {
+            console.error('Assessment spreadsheet creation failed:', assessmentResponse.statusText);
+          }
+        } catch (error) {
+          console.error('Error creating assessment spreadsheet:', error);
+          // エラーが発生してもプロセスを続行
+        }
+      }
 
-      if (result.success) {
-        console.log('保存成功！');
+      // SessionStorage に問題データを保存
+      const sessionData = {
+        problemData: {
+          ...problemToSave,
+          assessment_spreadsheet_id: assessmentSpreadsheetId
+        },
+        chatHistories: chatHistories,
+      };
+
+      sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
+      console.log('=== SessionStorage に保存完了 ===');
         setHasUnsavedChanges(false);
 
-        // localStorageから各種チャット履歴をクリア
-        if (user?.id) {
-          // sessionStorageから学習項目を取得
-          const learningTopic = sessionStorage.getItem('learningTopic');
+      // 学習項目選択状態をクリア（次回の問題作成時に再度選択させる）
+      clearTopicSelection();
+      console.log('=== 学習項目選択状態をクリア ===');
 
-          // review chat履歴のクリア
-          if (learningTopic) {
-            const reviewStorageKey = `review-chat-messages:${user.id}:${learningTopic}`;
-            localStorage.removeItem(reviewStorageKey);
-            console.log(`localStorage removed: ${reviewStorageKey}`);
-          }
-
-          // explanation chat履歴のクリア
-          const explanationStorageKey = `explanation-chat-messages:${user.id}`;
-          localStorage.removeItem(explanationStorageKey);
-          console.log(`localStorage removed: ${explanationStorageKey}`);
-
-          // chat (問題作成チャット) 履歴のクリア
-          const chatStorageKey = `chatMessages:${user.id}`;
-          localStorage.removeItem(chatStorageKey);
-          console.log(`localStorage removed: ${chatStorageKey}`);
-        }
-
-        // 学習項目選択状態をクリア（次回の問題作成時に再度選択させる）
-        clearTopicSelection();
-
-        alert('問題が保存されました！');
-        router.push('/dashboard');
-      } else {
-        console.error('保存失敗:', result.error);
-        
-        // エラーメッセージをより詳細に表示
-        let errorMessage = `保存に失敗しました: ${result.error}`;
-        if (result.error?.includes('タイムアウト')) {
-          errorMessage += '\n\nネットワーク接続を確認して、もう一度お試しください。';
-        } else if (result.error?.includes('認証')) {
-          errorMessage += '\n\nログイン状態を確認してください。';
-        } else if (result.error?.includes('接続')) {
-          errorMessage += '\n\nデータベース接続に問題があります。しばらく待ってからお試しください。';
-        }
-        
-        alert(errorMessage);
-      }
+      // agent-assessment ページに遷移
+      console.log('=== agent-assessment ページへ遷移 ===');
+      router.push('/agent-assessment');
     } catch (error) {
       console.error('Save error:', error);
       console.error('Error details:', {
@@ -361,6 +431,12 @@ const QuizCreationPage: React.FC = () => {
       setIsSaving(false);
       console.log('=== 保存処理終了 ===');
     }
+  };
+
+  const handleTitleCancel = () => {
+    console.log('=== タイトル入力キャンセル ===');
+    setShowTitlePopup(false);
+    setPendingTitle(null);
   };
 
   return (
@@ -803,6 +879,13 @@ const QuizCreationPage: React.FC = () => {
         newMode={pendingMode}
         onConfirm={handleModeChangeConfirm}
         onCancel={handleModeChangeCancel}
+      />
+      
+      {/* Title input popup */}
+      <TitleInputPopup
+        isOpen={showTitlePopup}
+        onSubmit={handleTitleSubmit}
+        onCancel={handleTitleCancel}
       />
     </div>
   );

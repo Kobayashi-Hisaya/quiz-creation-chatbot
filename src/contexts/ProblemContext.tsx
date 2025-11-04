@@ -9,12 +9,15 @@ interface ProblemData {
   code: string;
   language: string;
   learningTopic: LearningTopic;
+  predicted_accuracy: number | null; // 予想正答率（0-100%）
+  predicted_answerTime: number | null; // 予想解答時間（秒）
 }
 
 interface ProblemContextType {
   problemData: ProblemData;
   setProblemData: (data: ProblemData) => void;
   setLearningTopic: (topic: LearningTopic) => void;
+  setAssignmentData: (accuracy: number | null, answerTime: number | null) => void;
   // Spreadsheet persistence helpers
   spreadsheetState: {
     spreadsheetId?: string | null;
@@ -57,7 +60,9 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
     problem: '',
     code: '',
     language: '',
-    learningTopic: 'モデル化とシミュレーション/モンテカルロ法'
+    learningTopic: '',
+    predicted_accuracy: null,
+    predicted_answerTime: null,
   };
 
   const [problemData, setProblemData] = useState<ProblemData>(initialData);
@@ -167,11 +172,18 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setHasTopicBeenSelected(false);
   }, [topicSelectionKey]);
 
+  // 作問課題データを更新する関数
+  const setAssignmentData = (predicted_accuracy: number | null, predicted_answerTime: number | null) => {
+    const updatedData = { ...problemData, predicted_accuracy: predicted_accuracy, predicted_answerTime: predicted_answerTime };
+    setProblemData(updatedData);
+  };
+
   return (
     <ProblemContext.Provider value={{
       problemData,
       setProblemData,
       setLearningTopic,
+      setAssignmentData,
       spreadsheetState,
       setSpreadsheetState,
       clearPersistedSpreadsheet,
