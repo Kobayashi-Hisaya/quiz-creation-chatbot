@@ -79,20 +79,9 @@ const AddExplanationPage: React.FC = () => {
         setSpreadsheetId(storedSpreadsheetId);
         setProblemText(storedProblemText);
         setAnswerText(storedAnswerText || '');
-        setLearningTopic(storedLearningTopic || '');
 
         // explanationChatServiceにコンテキストを設定
         explanationChatService.setProblemContext(storedProblemText, storedAnswerText || '');
-
-        // sessionStorage から読み込んだ予想データを ProblemContext に設定
-        const predictedAccuracy = storedPredictedAccuracy ? parseInt(storedPredictedAccuracy, 10) : null;
-        const predictedAnswerTime = storedPredictedAnswerTime ? parseInt(storedPredictedAnswerTime, 10) : null;
-        
-        if (predictedAccuracy !== null || predictedAnswerTime !== null) {
-          console.log('=== 予想データを ProblemContext に設定 ===');
-          console.log('predictedAccuracy:', predictedAccuracy);
-          console.log('predictedAnswerTime:', predictedAnswerTime);
-        }
 
         setIsInitialized(true);
       } catch (error) {
@@ -379,11 +368,7 @@ const AddExplanationPage: React.FC = () => {
                     cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >
-<<<<<<< HEAD
                   {isSaving ? '処理中...' : '自動診断'}
-=======
-                  {isSaving ? '保存中...' : '問題を保存'}
->>>>>>> main
                 </button>
               </div>
             </div>

@@ -4,9 +4,10 @@ import Split from 'react-split';
 import '@/styles/split.css';
 import { ChatContainer } from '@/components/ChatContainer';
 import { RightPanel } from '@/components/RightPanel';
-import { LearningTopicSelector } from '@/components/LearningTopicSelector';
+import { LearningTopicSelector, type LearningTopic } from '@/components/LearningTopicSelector';
 import { AssignmentInputPopup } from '@/components/AssignmentInputPopup';
 import { useProblem } from '@/contexts/ProblemContext';
+import { chatService } from '@/services/chatService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const SPLIT_STORAGE_KEY = 'create-quiz-split';
@@ -41,39 +42,27 @@ const HomePage: React.FC = () => {
   // Split sizes (percent).
   const [splitSizes, setSplitSizes] = useState<number[]>(getInitialSplitSizes);
 
+  // ページ初期化時に、学習項目がすでに選択されている場合は作問課題ポップアップを表示
+  useEffect(() => {
+    console.log('=== create-quiz ページ初期化 ===');
+    console.log('hasTopicBeenSelected:', hasTopicBeenSelected);
+    console.log('learningTopic:', problemData.learningTopic);
+    console.log('predicted_accuracy:', problemData.predicted_accuracy);
+    console.log('predicted_answerTime:', problemData.predicted_answerTime);
+    
+    // 学習項目が既に選択されていて、作問課題がまだ入力されていない場合
+    if (hasTopicBeenSelected && problemData.predicted_accuracy === null && problemData.predicted_answerTime === null) {
+      console.log('作問課題ポップアップを表示します');
+      setShowAssignmentPopup(true);
+    }
+  }, [hasTopicBeenSelected, problemData.predicted_accuracy, problemData.predicted_answerTime]);
+
   // TopicSelectorは review-learning-topic ページで表示されるため、ここでは表示しない
   // useEffect(() => {
   //   if (!hasTopicBeenSelected) {
   //     setShowTopicSelector(true);
   //   }
   // }, [hasTopicBeenSelected]);
-
-  // ページロード時にスプレッドシートデータを復元（1回のみ実行）
-  useEffect(() => {
-    if (
-      !restorationAttempted &&
-      !isDataRestored &&
-      getCurrentDataRef.current &&
-      spreadsheetState?.spreadsheetId &&
-      !currentSpreadsheetData
-    ) {
-      setRestorationAttempted(true); // 先に試行フラグを立てる
-      const restoreData = async () => {
-        try {
-          const data = await getCurrentDataRef.current!();
-          if (data) {
-            setCurrentSpreadsheetData(data);
-            setIsDataRestored(true);
-          }
-        } catch (error) {
-          console.error('Failed to restore spreadsheet data:', error);
-          // エラー時は試行済みだが復元未完了状態にする
-        }
-      };
-      restoreData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restorationAttempted, isDataRestored, spreadsheetState?.spreadsheetId, currentSpreadsheetData]);
 
   // ページロード時にスプレッドシートデータを復元（1回のみ実行）
   useEffect(() => {
