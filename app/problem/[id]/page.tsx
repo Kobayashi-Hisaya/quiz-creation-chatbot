@@ -323,7 +323,7 @@ const ProblemDetailPageContent: React.FC = () => {
                     flex: 1,
                   }}
                 >
-                  {problem.explanation || '解説がありません'}
+                  {problem.modified_explanation || problem.explanation || '解説がありません'}
                 </div>
               </div>
 
@@ -564,7 +564,7 @@ const ProblemDetailPageContent: React.FC = () => {
               )}
 
               {/* 解説 */}
-              {problem.explanation && (
+              {(problem.modified_explanation || problem.explanation) && (
                 <div>
                   <h2
                     style={{
@@ -584,7 +584,7 @@ const ProblemDetailPageContent: React.FC = () => {
                       whiteSpace: 'pre-wrap',
                     }}
                   >
-                    {problem.explanation}
+                    {problem.modified_explanation || problem.explanation}
                   </div>
                 </div>
               )}

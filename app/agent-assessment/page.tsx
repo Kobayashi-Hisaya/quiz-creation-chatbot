@@ -35,7 +35,7 @@ export default function AgentAssessmentPage() {
 
   // Split sizes の管理（localStorage に保存）
   const VERTICAL_SPLIT_KEY = 'agent-assessment-vertical-split';
-  const DEFAULT_VERTICAL_SIZES: number[] = [70, 30]; // 上下 70:30
+  const DEFAULT_VERTICAL_SIZES: number[] = [85, 15]; // 上下 85:15（スプレッドシート広め）
   
   const getInitialVerticalSizes = (): number[] => {
     if (typeof window === 'undefined') return DEFAULT_VERTICAL_SIZES;
@@ -239,6 +239,45 @@ export default function AgentAssessmentPage() {
       setDiagnosisResult('診断処理中にエラーが発生しました。詳細はコンソールを確認してください。');
     } finally {
       setIsDiagnosing(false);
+    }
+  };
+
+  // 問題保存ボタンクリック（修正後の解説を保存してダッシュボードへ）
+  const handleSaveProblem = async () => {
+    if (!sessionData || !user) {
+      alert('エラーが発生しました。作成画面から再度作成してください。');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const userInfo = { id: user.id, email: user.email };
+      
+      // 修正後の解説を modified_explanation として保存
+      const updatedProblemData = {
+        ...sessionData.problemData,
+        modified_explanation: editedExplanation // 修正後の解説を設定
+      };
+      
+      const result = await saveProblem(updatedProblemData, sessionData.chatHistories, userInfo);
+
+      console.log('[AgentAssessment] 保存結果:', result);
+
+      if (result.success) {
+        // SessionStorage をクリア
+        sessionStorage.removeItem('problemDataForAssessment');
+        alert('問題が保存されました！');
+        router.push('/dashboard');
+      } else {
+        console.error('[AgentAssessment] 保存失敗:', result.error);
+        alert(`問題の保存に失敗しました: ${result.error}`);
+      }
+    } catch (err) {
+      console.error('[AgentAssessment] 保存エラー:', err);
+      alert('問題の保存中にエラーが発生しました。');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -524,14 +563,14 @@ export default function AgentAssessmentPage() {
         </div>
       </div>
 
-      {/* スクロール可能なコンテンツ - 2分割レイアウト */}
+      {/* メインコンテンツエリア - 2カラムレイアウト */}
       <div style={{
         flex: 1,
         display: 'flex',
         minHeight: 0,
         overflow: 'hidden'
       }}>
-        {/* 左側：診断結果パネル */}
+        {/* 左側：自動診断結果 */}
         <div style={{
           flex: '0 0 50%',
           borderRight: '2px solid #e0e0e0',
@@ -556,6 +595,46 @@ export default function AgentAssessmentPage() {
             }}>
               AI診断結果
             </h2>
+
+            {/* 診断ボタン */}
+            <div style={{ marginBottom: '16px' }}>
+              <button
+                onClick={runDiagnosis}
+                disabled={isDiagnosing}
+                style={{
+                  width: '100%',
+                  padding: '12px 24px',
+                  backgroundColor: isDiagnosing ? '#95a5a6' : '#00d4ff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  cursor: isDiagnosing ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  boxShadow: isDiagnosing ? 'none' : '0 4px 15px rgba(0, 212, 255, 0.3)',
+                  opacity: isDiagnosing ? 0.6 : 1
+                }}
+                onMouseOver={(e) => {
+                  if (!isDiagnosing) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 212, 255, 0.5)';
+                    e.currentTarget.style.backgroundColor = '#00a8cc';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isDiagnosing) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 212, 255, 0.3)';
+                    e.currentTarget.style.backgroundColor = '#00d4ff';
+                  }
+                }}
+              >
+                {isDiagnosing ? '診断中...' : '🤖 AI診断を実行'}
+              </button>
+            </div>
 
             {/* 診断状態の表示 */}
             {isDiagnosing ? (
@@ -606,46 +685,21 @@ export default function AgentAssessmentPage() {
                   color: '#1565c0',
                   fontStyle: 'italic'
                 }}>
-                  診断結果がまだ取得されていません。
+                  上のボタンをクリックして診断を開始してください。
                 </p>
               </div>
             )}
-
-            {/* 診断情報 */}
-            <div style={{
-              marginTop: '20px',
-              padding: '12px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '6px',
-              fontSize: '12px',
-              color: '#666'
-            }}>
-              <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>
-                📋 問題情報
-              </p>
-              <p style={{ margin: '4px 0' }}>
-                <strong>タイトル:</strong> {sessionData?.problemData.title || 'タイトル未定'}
-              </p>
-              <p style={{ margin: '4px 0' }}>
-                <strong>学習トピック:</strong> {sessionData?.problemData.learning_topic || '未設定'}
-              </p>
-              <p style={{ margin: '4px 0' }}>
-                <strong>言語:</strong> {sessionData?.problemData.language || '不明'}
-              </p>
-              <p style={{ margin: '4px 0' }}>
-                <strong>選択肢数:</strong> {sessionData?.problemData.choices?.length || 0}個
-              </p>
-            </div>
           </div>
         </div>
 
-        {/* 右側：縦Split（スプレッドシート70% + 解説編集30%） */}
+        {/* 右側：修正スペース（スプレッドシート + 解説編集 + 保存ボタン） */}
         <div style={{
           flex: '0 0 50%',
-          backgroundColor: 'white',
-          overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
+          backgroundColor: 'white'
         }}>
           <Split
             sizes={verticalSizes}
@@ -662,168 +716,159 @@ export default function AgentAssessmentPage() {
               overflow: 'hidden'
             }}
           >
-            {/* 上部：スプレッドシート */}
+          {/* 上部：スプレッドシート */}
+          <div style={{
+            height: '100%',
+            backgroundColor: 'white',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
             <div style={{
-              height: '100%',
-              backgroundColor: 'white',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
+              padding: '8px 16px',
+              backgroundColor: '#1a1a2e',
+              color: 'white',
+              borderBottom: '3px solid #00d4ff',
+              flexShrink: 0
             }}>
-              <div style={{
-                padding: '16px 20px',
-                backgroundColor: '#1a1a2e',
-                color: 'white',
-                borderBottom: '3px solid #00d4ff',
-                flexShrink: 0
+              <h2 style={{
+                margin: 0,
+                fontSize: '14px',
+                fontWeight: 700,
+                letterSpacing: '0.5px'
               }}>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  letterSpacing: '0.5px'
-                }}>
-                  スプレッドシート（編集・診断）
-                </h2>
-                <p style={{
-                  margin: '4px 0 0 0',
-                  fontSize: '11px',
-                  color: '#00d4ff',
-                  fontWeight: 400
-                }}>
-                  このスプレッドシートで問題データを直接編集できます
-                </p>
-              </div>
-
-              <div style={{
-                flex: 1,
-                position: 'relative',
-                backgroundColor: '#f9f9f9',
-                overflow: 'hidden'
-              }}>
-                {sessionData?.problemData?.spreadsheet_id ? (
-                  <iframe
-                    src={`https://docs.google.com/spreadsheets/d/${sessionData.problemData.spreadsheet_id}/edit?usp=sharing&rm=minimal`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none'
-                    }}
-                    title="作業用スプレッドシート（スプシ①）"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    color: '#999',
-                    fontSize: '14px'
-                  }}>
-                    スプレッドシートが作成されていません
-                  </div>
-                )}
-              </div>
+                スプレッドシート（編集・診断）
+              </h2>
             </div>
 
-            {/* 下部：解説編集 */}
             <div style={{
-              height: '100%',
-              backgroundColor: '#ffffff',
-              overflow: 'auto',
-              display: 'flex',
-              flexDirection: 'column'
+              flex: 1,
+              position: 'relative',
+              backgroundColor: '#f9f9f9',
+              overflow: 'hidden'
             }}>
-              <div style={{
-                padding: '12px 20px',
-                backgroundColor: '#2c3e50',
-                color: 'white',
-                borderBottom: '2px solid #3498db',
-                flexShrink: 0
-              }}>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  letterSpacing: '0.5px'
-                }}>
-                  解説編集
-                </h3>
-              </div>
-
-              <div style={{
-                flex: 1,
-                padding: '16px',
-                overflow: 'auto'
-              }}>
-                <textarea
-                  value={editedExplanation}
-                  onChange={(e) => setEditedExplanation(e.target.value)}
-                  placeholder="解説を入力してください..."
+              {sessionData?.problemData?.spreadsheet_id ? (
+                <iframe
+                  src={`https://docs.google.com/spreadsheets/d/${sessionData.problemData.spreadsheet_id}/edit`}
                   style={{
                     width: '100%',
                     height: '100%',
-                    minHeight: '150px',
-                    padding: '12px',
-                    fontSize: '14px',
-                    lineHeight: '1.6',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontFamily: 'inherit',
-                    resize: 'none',
-                    boxSizing: 'border-box'
+                    border: 'none'
                   }}
+                  title="作業用スプレッドシート（スプシ①）"
+                  allowFullScreen
                 />
-              </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  color: '#999',
+                  fontSize: '14px'
+                }}>
+                  スプレッドシートが作成されていません
+                </div>
+              )}
             </div>
-          </Split>
-        </div>
+          </div>
 
-        {/* 下部アクションボタン */}
+          {/* 下部：解説編集 */}
+          <div style={{
+            height: '100%',
+            backgroundColor: '#ffffff',
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              padding: '8px 16px',
+              backgroundColor: '#2c3e50',
+              color: 'white',
+              borderBottom: '2px solid #3498db',
+              flexShrink: 0
+            }}>
+              <h3 style={{
+                margin: 0,
+                fontSize: '14px',
+                fontWeight: 700,
+                letterSpacing: '0.5px'
+              }}>
+                解説編集
+              </h3>
+            </div>
+
+            <div style={{
+              flex: 1,
+              padding: '16px',
+              overflow: 'auto'
+            }}>
+              <textarea
+                value={editedExplanation}
+                onChange={(e) => setEditedExplanation(e.target.value)}
+                placeholder="解説を入力してください..."
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minHeight: '150px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontFamily: 'inherit',
+                  resize: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+        </Split>
+
+        {/* 問題保存ボタンブロック（独立） */}
         <div style={{
-          padding: '16px 20px',
-          borderTop: '2px solid #00d4ff',
-          display: 'flex',
-          gap: '10px',
-          justifyContent: 'flex-end',
-          flexShrink: 0,
-          backgroundColor: '#f5f5f5'
+          padding: '12px 16px',
+          backgroundColor: '#f8f9fa',
+          borderTop: '2px solid #e0e0e0',
+          flexShrink: 0
         }}>
           <button
-            onClick={handleRegisterProblem}
+            onClick={handleSaveProblem}
             disabled={isSaving}
-            style={getButtonStyle('success', isSaving) as any}
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              backgroundColor: isSaving ? '#95a5a6' : '#00ff88',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '15px',
+              fontWeight: '700',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              boxShadow: isSaving ? 'none' : '0 4px 15px rgba(0, 255, 136, 0.3)',
+              opacity: isSaving ? 0.6 : 1
+            }}
             onMouseOver={(e) => {
               if (!isSaving) {
-                e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 8px rgba(0,0,0,0.08)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 255, 136, 0.5)';
+                e.currentTarget.style.backgroundColor = '#00cc66';
               }
             }}
             onMouseOut={(e) => {
               if (!isSaving) {
-                e.currentTarget.style.boxShadow = `0 0 10px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.15)`;
                 e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 255, 136, 0.3)';
+                e.currentTarget.style.backgroundColor = '#00ff88';
               }
             }}
           >
-            {isSaving ? '登録中...' : '登録'}
+            {isSaving ? '保存中...' : '✓ 問題保存してダッシュボードへ'}
           </button>
-
-          <button
-            onClick={handleCancel}
-            style={getButtonStyle('danger') as any}
-            onMouseOver={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.4), inset 0 0 8px rgba(255,255,255,0.15)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.boxShadow = `0 0 10px rgba(255, 51, 102, 0.2), 0 0 20px rgba(255, 51, 102, 0.15)`;
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            キャンセル
-          </button>
+        </div>
         </div>
       </div>
     </div>

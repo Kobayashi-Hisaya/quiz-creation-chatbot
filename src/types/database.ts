@@ -18,6 +18,7 @@ export interface Problem {
   code_with_blanks: string | null;
   choices: QuizChoice[] | null; // JSONB
   explanation: string | null;
+  modified_explanation: string | null; // 修正後の解説
   title: string | null;
   predicted_accuracy: number | null; // 予想正答率（0-100%）
   predicted_answerTime: number | null; // 予想解答時間（秒）
