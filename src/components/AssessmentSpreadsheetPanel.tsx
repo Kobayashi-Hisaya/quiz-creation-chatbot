@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { gasClientService, type DataProblemTemplateData } from '@/services/gasClientService';
+import React, { useState, useCallback, useEffect } from 'react';
+import { gasClientService } from '@/services/gasClientService';
 
 interface ProblemData {
   problem_text: string;
@@ -15,12 +15,20 @@ interface ProblemData {
   assessment_spreadsheet_id?: string | null;
 }
 
+interface AssessmentSheetData {
+  expectedAccuracy: number | null;
+  expectedAnswerTime: number | null;
+  actualAccuracy?: number | null;
+  actualAnswerTime?: number | null;
+  [key: string]: unknown;
+}
+
 interface AssessmentSpreadsheetPanelProps {
   userEmail?: string;
   problemData: ProblemData;
-  onDataChange?: (data: any) => void;
+  onDataChange?: (data: AssessmentSheetData) => void;
   onError?: (error: string) => void;
-  onGetCurrentDataRef?: (getCurrentData: () => Promise<any | null>) => void;
+  onGetCurrentDataRef?: (getCurrentData: () => Promise<AssessmentSheetData | null>) => void;
 }
 
 export const AssessmentSpreadsheetPanel: React.FC<AssessmentSpreadsheetPanelProps> = ({

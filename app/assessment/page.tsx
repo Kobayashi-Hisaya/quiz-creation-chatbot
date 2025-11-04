@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getProblemById, getProblemComments, addCommentToProblem, deleteComment, updateComment, getChatHistories } from '@/services/problemService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +20,7 @@ interface Comment {
   user_email?: string;
 }
 
-export default function AssessmentPage() {
+function AssessmentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, groupId } = useAuth();
@@ -1075,5 +1075,13 @@ export default function AssessmentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AssessmentPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '20px', textAlign: 'center' }}>読み込み中...</div>}>
+      <AssessmentContent />
+    </Suspense>
   );
 }

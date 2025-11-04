@@ -42,6 +42,27 @@ export interface GetDataResponse {
   lastModified: string;
 }
 
+export interface AssessmentProblemData {
+  problemText: string;
+  code?: string | null;
+  language?: string | null;
+  learningTopic?: string;
+  codeWithBlanks?: string;
+  choices?: Array<{ option: string; text: string; isCorrect: boolean }>;
+  explanation?: string | null;
+  title?: string | null;
+  expectedAccuracy?: number | null;
+  expectedAnswerTime?: number | null;
+}
+
+export interface AssessmentSheetDataResponse {
+  expectedAccuracy: number | null;
+  expectedAnswerTime: number | null;
+  actualAccuracy?: number | null;
+  actualAnswerTime?: number | null;
+  [key: string]: unknown;
+}
+
 class GASClientService {
   /**
    * 新しいデータ整理問題用スプレッドシートを作成
@@ -212,7 +233,7 @@ class GASClientService {
   /**
    * 問題評価用スプレッドシートを作成
    */
-  async createAssessmentSheet(userEmail: string, sessionId: string, problemData: any): Promise<CreateSheetResponse | null> {
+  async createAssessmentSheet(userEmail: string, sessionId: string, problemData: AssessmentProblemData): Promise<CreateSheetResponse | null> {
     try {
       const response = await fetch('/api/gas/create-assessment-sheet', {
         method: 'POST',
@@ -241,7 +262,7 @@ class GASClientService {
   /**
    * 問題評価用スプレッドシートのデータを取得
    */
-  async getAssessmentSheetData(spreadsheetId: string): Promise<any | null> {
+  async getAssessmentSheetData(spreadsheetId: string): Promise<AssessmentSheetDataResponse | null> {
     try {
       const response = await fetch(`/api/gas/get-assessment-data?spreadsheetId=${encodeURIComponent(spreadsheetId)}`);
 

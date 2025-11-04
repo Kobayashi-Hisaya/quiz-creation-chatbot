@@ -17,10 +17,10 @@ class QuizGenerationService {
         const text = await response.text();
 
         // 試みてJSONを解析
-        let errorData: any = null;
+        let errorData: { error?: string; raw?: string } | null = null;
         try {
           errorData = JSON.parse(text);
-        } catch (e) {
+        } catch {
           console.error('Quiz generation API response (non-JSON):', text);
           throw new Error(`API request failed: ${response.statusText} - ${text}`);
         }

@@ -171,7 +171,7 @@ export const saveProblem = async (
     console.log('[problemService] チャット履歴挿入データ件数:', chatHistoryInserts.length);
     console.log('[problemService] チャット履歴サイズ概算:', JSON.stringify(chatHistoryInserts).length, 'bytes');
 
-    let chatError: any = null;
+    let chatError: Error | { code?: string; message?: string } | null = null;
     try {
       console.log('[problemService] チャット履歴 insert 開始', new Date().toISOString());
       
@@ -188,13 +188,13 @@ export const saveProblem = async (
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
       });
-      chatError = error;
+      chatError = error instanceof Error ? error : new Error(String(error));
     }
 
-    console.log('[problemService] チャット履歴保存結果:', { 
+    console.log('[problemService] チャット履歴保存結果:', {
       hasError: !!chatError,
-      errorCode: chatError?.code,
-      errorMessage: chatError?.message 
+      errorCode: chatError && 'code' in chatError ? chatError.code : undefined,
+      errorMessage: chatError?.message
     });
 
     if (chatError) {
@@ -575,11 +575,22 @@ export const addCommentToProblem = async (
 /**
  * 問題のコメント一覧を取得（作成者情報付き）
  */
+export interface ProblemComment {
+  id: string;
+  problem_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  is_edited: boolean;
+  user_email?: string;
+}
+
 export const getProblemComments = async (
   problemId: string
 ): Promise<{
   success: boolean;
-  comments?: (any & { user_email?: string })[];
+  comments?: ProblemComment[];
   error?: string;
 }> => {
   try {
