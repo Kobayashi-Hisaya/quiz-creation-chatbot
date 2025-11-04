@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { getProblemById, getProblemComments, addCommentToProblem, deleteComment, updateComment } from '@/services/problemService';
+import { getProblemById, getProblemComments, addCommentToProblem, deleteComment, updateComment, getChatHistories } from '@/services/problemService';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Problem, QuizChoice } from '@/types/database';
 import { gasClientService } from '@/services/gasClientService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Comment {
   id: string;
@@ -21,7 +23,7 @@ interface Comment {
 export default function AssessmentPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, groupId } = useAuth();
   const problemId = searchParams.get('problemId');
 
   const [problem, setProblem] = useState<Problem | null>(null);
@@ -43,6 +45,10 @@ export default function AssessmentPage() {
 
   // 解説の折りたたみ管理
   const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
+
+  // 提案コメント管理
+  const [suggestionContent, setSuggestionContent] = useState<string | null>(null);
+  const [isSuggestionExpanded, setIsSuggestionExpanded] = useState(false);
 
   // スプレッドシートID取得ヘルパー関数
   const getSpreadsheetId = (problem: Problem | null): string | null => {
@@ -88,6 +94,24 @@ export default function AssessmentPage() {
       const commentsResult = await getProblemComments(problemId);
       if (commentsResult.success && commentsResult.comments) {
         setComments(commentsResult.comments);
+      }
+
+      // チャット履歴を取得（suggestion タイプのみ）
+      const chatHistoriesResult = await getChatHistories(problemId);
+      if (chatHistoriesResult.success && chatHistoriesResult.chatHistories) {
+        // suggestion タイプのみ抽出
+        const suggestionHistory = chatHistoriesResult.chatHistories.find(
+          (history) => history.chat_type === 'suggestion'
+        );
+        if (suggestionHistory) {
+          // assistant ロールのメッセージのみ取得
+          const assistantMessage = suggestionHistory.messages.find(
+            (msg) => msg.role === 'assistant'
+          );
+          if (assistantMessage) {
+            setSuggestionContent(assistantMessage.content);
+          }
+        }
       }
 
       setLoading(false);
@@ -223,6 +247,16 @@ export default function AssessmentPage() {
 
   // 問題作成者かどうかを判定
   const isCreator = problem && user && problem.user_id === user.id;
+
+  // group_id による提案コメント表示制御
+  const shouldShowSuggestion = (groupId: number | null | undefined): boolean => {
+    // group_id が null/undefined の場合は表示
+    if (groupId === null || groupId === undefined) {
+      return true;
+    }
+    // group_id が 1, 2, 3, 7 の場合は表示
+    return [1, 2, 3, 7].includes(groupId);
+  };
 
   const handleBackToBBS = () => {
     router.push('/bbs');
@@ -671,6 +705,65 @@ export default function AssessmentPage() {
                   }}>
                     {problem.modified_explanation || problem.explanation}
                   </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 提案コメントセクション（折りたたみ可能） */}
+          {!loading && suggestionContent && shouldShowSuggestion(groupId) && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e0e0e0',
+              overflow: 'hidden'
+            }}>
+              <div
+                onClick={() => setIsSuggestionExpanded(!isSuggestionExpanded)}
+                style={{
+                  padding: '16px 20px',
+                  backgroundColor: '#e7f3ff',
+                  borderBottom: isSuggestionExpanded ? '1px solid #b3d9ff' : 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d4e8f7';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e7f3ff';
+                }}
+              >
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  color: '#2c3e50',
+                  margin: 0
+                }}>
+                  💡 議論のためのヒント
+                </h3>
+                <span style={{
+                  fontSize: '18px',
+                  color: '#3498db',
+                  fontWeight: 'bold'
+                }}>
+                  {isSuggestionExpanded ? '▲' : '▼'}
+                </span>
+              </div>
+              {isSuggestionExpanded && (
+                <div style={{
+                  padding: '20px',
+                  color: '#333',
+                  lineHeight: '1.6',
+                  fontSize: '14px'
+                }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {suggestionContent}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>

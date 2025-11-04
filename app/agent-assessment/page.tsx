@@ -15,6 +15,8 @@ import { assessmentService } from '@/services/assessmentService';
 import { suggestionService } from '@/services/suggestionService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 import type { QuizChoice } from '@/types/quiz';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ProblemDataToSave extends SaveProblemData {
   title: string;
@@ -909,15 +911,14 @@ export default function AgentAssessmentPage() {
                 borderRadius: '8px',
                 lineHeight: '1.6'
               }}>
-                <p style={{
-                  margin: 0,
+                <div style={{
                   fontSize: '14px',
-                  color: '#2c3e50',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  color: '#2c3e50'
                 }}>
-                  {diagnosisResult}
-                </p>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {diagnosisResult}
+                  </ReactMarkdown>
+                </div>
               </div>
             ) : (
               <div style={{
