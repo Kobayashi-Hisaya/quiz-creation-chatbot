@@ -59,8 +59,8 @@ export const ProblemProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const initialData: ProblemData = {
     problem: '',
     code: '',
-    language: 'typescript',
-    learningTopic: '制御構造',
+    language: '',
+    learningTopic: '',
     predicted_accuracy: null,
     predicted_answerTime: null,
   };

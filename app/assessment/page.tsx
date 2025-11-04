@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { getProblemById, getProblemComments, addCommentToProblem, deleteComment, updateComment } from '@/services/problemService';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Problem, QuizChoice } from '@/types/database';
+import { gasClientService } from '@/services/gasClientService';
 
 interface Comment {
   id: string;
@@ -39,6 +40,29 @@ export default function AssessmentPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+
+  // 解説の折りたたみ管理
+  const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
+
+  // スプレッドシートID取得ヘルパー関数
+  const getSpreadsheetId = (problem: Problem | null): string | null => {
+    if (!problem) return null;
+
+    // 1. spreadsheet_idが存在すればそれを優先
+    if (problem.spreadsheet_id) {
+      return problem.spreadsheet_id;
+    }
+
+    // 2. spreadsheet_urlからIDを抽出
+    if (problem.spreadsheet_url) {
+      const match = problem.spreadsheet_url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    return null;
+  };
 
   // 初期ロード
   useEffect(() => {
@@ -223,15 +247,40 @@ export default function AssessmentPage() {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <h1 style={{
-          fontSize: '28px',
-          fontWeight: 'bold',
-          color: '#2c3e50',
-          margin: 0
-        }}>
-          問題診断
-        </h1>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: 'bold',
+            color: '#ffffff',
+            backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '16px 20px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+            border: '1px solid rgba(102, 126, 234, 0.3)',
+            margin: 0,
+            marginBottom: '8px'
+          }}>
+            ✨ {problem?.title || '問題診断'}
+          </h1>
+          {!loading && problem && (
+            <div style={{
+              fontSize: '13px',
+              color: '#666',
+              paddingLeft: '8px'
+            }}>
+              <span style={{ marginRight: '16px' }}>
+                <strong>言語:</strong> {problem.language || '不明'}
+              </span>
+              <span style={{ marginRight: '16px' }}>
+                <strong>トピック:</strong> {problem.learning_topic || '不明'}
+              </span>
+              <span>
+                <strong>作成日:</strong> {new Date(problem.created_at).toLocaleDateString('ja-JP')}
+              </span>
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '12px', marginLeft: '20px' }}>
           <button
             onClick={handleBackToBBS}
             style={{
@@ -284,7 +333,7 @@ export default function AssessmentPage() {
         maxWidth: '1600px',
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: '3fr 2fr',
         gap: '20px'
       }}>
         {/* ======================== 左側：問題レビュー画面 ======================== */}
@@ -313,54 +362,51 @@ export default function AssessmentPage() {
             </div>
           )}
 
-          {!loading && problem && (
-            <div>
-              {/* 問題ヘッダー情報 */}
-              <div style={{
-                marginBottom: '20px',
-                padding: '20px',
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                border: '1px solid #e0e0e0'
-              }}>
-                <h2 style={{
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: '#2c3e50',
-                  marginTop: 0,
-                  marginBottom: '12px'
-                }}>
-                  問題情報
-                </h2>
-                <div style={{ fontSize: '13px', color: '#666' }}>
-                  <p style={{
-                    margin: '8px 0',
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: '#ffffff',
-                    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                    border: '1px solid rgba(102, 126, 234, 0.3)'
-                  }}>
-                    <strong>✨ タイトル:</strong> {problem.title || 'タイトル未定'}
-                  </p>
-                  <p style={{ margin: '5px 0' }}>
-                    <strong>言語:</strong> {problem.language || '不明'}
-                  </p>
-                  <p style={{ margin: '5px 0' }}>
-                    <strong>トピック:</strong> {problem.learning_topic || '不明'}
-                  </p>
-                  <p style={{ margin: '5px 0' }}>
-                    <strong>作成日:</strong> {new Date(problem.created_at).toLocaleDateString('ja-JP')}
-                  </p>
-                </div>
-              </div>
+          {!loading && problem && (() => {
+            const spreadsheetId = getSpreadsheetId(problem);
 
-              {/* 問題文 */}
+            // スプレッドシートIDがある場合
+            if (spreadsheetId) {
+              const embedUrl = gasClientService.getEmbedUrl(spreadsheetId);
+              return (
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid #e0e0e0',
+                  padding: '20px',
+                  height: 'calc(100vh - 200px)',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    color: '#2c3e50',
+                    marginTop: 0,
+                    marginBottom: '15px'
+                  }}>
+                    作成された問題
+                  </h3>
+                  <iframe
+                    src={embedUrl}
+                    style={{
+                      flex: 1,
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      backgroundColor: 'white'
+                    }}
+                    title="Problem Spreadsheet"
+                    allowFullScreen
+                  />
+                </div>
+              );
+            }
+
+            // 従来の表示（スプレッドシートIDがない場合）
+            return (
+              <div>
+                {/* 問題文 */}
               <div style={{
                 marginBottom: '20px',
                 padding: '20px',
@@ -557,55 +603,89 @@ export default function AssessmentPage() {
                 </div>
               )}
 
-              {/* 解説 */}
-              {answered && problem.explanation && (
-                <div style={{
-                  marginBottom: '20px',
-                  padding: '20px',
-                  backgroundColor: 'white',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid #e0e0e0'
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ======================== 右側：解説とコメント ======================== */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px'
+        }}>
+          {/* 解説セクション（折りたたみ可能） */}
+          {!loading && problem && (problem.modified_explanation || problem.explanation) && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e0e0e0',
+              overflow: 'hidden'
+            }}>
+              <div
+                onClick={() => setIsExplanationExpanded(!isExplanationExpanded)}
+                style={{
+                  padding: '16px 20px',
+                  backgroundColor: '#e7f3ff',
+                  borderBottom: isExplanationExpanded ? '1px solid #b3d9ff' : 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d4e8f7';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e7f3ff';
+                }}
+              >
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  color: '#2c3e50',
+                  margin: 0
                 }}>
-                  <h3 style={{
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    color: '#2c3e50',
-                    marginTop: 0,
-                    marginBottom: '12px'
-                  }}>
-                    解説
-                  </h3>
+                  📘 解説
+                </h3>
+                <span style={{
+                  fontSize: '18px',
+                  color: '#3498db',
+                  fontWeight: 'bold'
+                }}>
+                  {isExplanationExpanded ? '▲' : '▼'}
+                </span>
+              </div>
+              {isExplanationExpanded && (
+                <div style={{
+                  padding: '20px',
+                }}>
                   <p style={{
                     whiteSpace: 'pre-wrap',
-                    backgroundColor: '#e7f3ff',
-                    padding: '12px',
-                    borderRadius: '6px',
                     color: '#333',
                     lineHeight: '1.6',
                     margin: 0,
-                    border: '1px solid #b3d9ff',
                     fontSize: '14px'
                   }}>
-                    {problem.explanation}
+                    {problem.modified_explanation || problem.explanation}
                   </p>
                 </div>
               )}
             </div>
           )}
-        </div>
 
-        {/* ======================== 右側：コメント掲示板 ======================== */}
-        <div>
+          {/* コメントセクション */}
           <div style={{
             padding: '20px',
             backgroundColor: 'white',
             borderRadius: '12px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
             border: '1px solid #e0e0e0',
-            height: '100%',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            minHeight: '400px'
           }}>
             <h3 style={{
               fontSize: '18px',
