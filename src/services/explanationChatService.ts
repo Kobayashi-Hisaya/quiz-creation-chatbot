@@ -1,35 +1,90 @@
 import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import type { DataProblemTemplateData } from './gasClientService';
 
 class ExplanationChatService {
   private baseSystemMessage: string;
   private conversationHistory: BaseMessage[];
+  private currentExplanation: string;
+  private currentSpreadsheetData: DataProblemTemplateData | null = null;
 
   constructor() {
-    // 解説相談用のシステムメッセージ
-    this.baseSystemMessage = `
-    # 役割
-    あなたは、選択式問題の解説作成を支援する親切なプログラミング教員です。
+    // 初期化時は空の状態
+    // setProblemContextで問題コンテキストとともにシステムメッセージを設定する
+    this.baseSystemMessage = '';
+    this.conversationHistory = [];
+    this.currentExplanation = '';
+  }
 
-    # 命令
-    ユーザーが作成している選択式問題の解説について相談に乗ってください。以下の点を重視してサポートしてください：
-    - 学習者にとって理解しやすい解説の書き方をアドバイス
-    - コードの動作や概念の説明方法を提案
-    - 解説の構成や流れについて助言
-    - 具体例や図解の提案
+  // システムメッセージのプレースホルダーを置き換えて取得
+  private getCurrentSystemMessage(): string {
+    const explanationText = this.currentExplanation || '(未入力)';
 
-    # 対話上の注意
-    - 出力はマークダウン形式で行ってください
-    - 具体的で実践的なアドバイスを心がけてください
-    - 学習者の視点に立った解説作成を推奨してください
-    - 質問があれば遠慮なく聞いてください
-    `;
+    let spreadsheetInfo = '';
+    if (this.currentSpreadsheetData) {
+      const { sheets, lastModified } = this.currentSpreadsheetData;
 
-    // 対話履歴をメモリ内で初期化
-    this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
+      if (!sheets || sheets.length === 0) {
+        spreadsheetInfo = 'スプレッドシートデータは未取得です。';
+      } else {
+        // 全シートのデータをフォーマット
+        const sheetsDisplay = sheets.map((sheet, sheetIndex) => {
+          const { sheetName, quizData, lastRow, lastColumn } = sheet;
+
+          let dataDisplay = '';
+          if (!quizData || quizData.length === 0) {
+            dataDisplay = 'データなし（8行目以降に入力がありません）';
+          } else if (quizData.length <= 100) {
+            // 100セル以下: 全データを表示
+            dataDisplay = quizData.map((cell) =>
+              `${cell.cellAddress}: ${cell.value}`
+            ).join('\n');
+          } else {
+            // 100セル超: 最初の50セル + 最後の10セルを表示
+            const firstCells = quizData.slice(0, 50).map(cell =>
+              `${cell.cellAddress}: ${cell.value}`
+            ).join('\n');
+            const lastCells = quizData.slice(-10).map(cell =>
+              `${cell.cellAddress}: ${cell.value}`
+            ).join('\n');
+            dataDisplay = `${firstCells}\n...(${quizData.length - 60}セル省略)...\n${lastCells}`;
+          }
+
+          return `
+=== シート${sheetIndex + 1}: "${sheetName}" ===
+使用範囲: ${lastRow}行 × ${lastColumn}列
+データセル数: ${quizData?.length || 0}セル（空白セル除く）
+問題文：${sheet.problemText || '未入力'}
+回答：${sheet.answerText || '未入力'}
+
+データ（8行目以降）:
+${dataDisplay}
+`;
+        }).join('\n');
+
+        spreadsheetInfo = `
+スプレッドシート全体の概要:
+- シート数: ${sheets.length}
+- 最終更新: ${lastModified || '不明'}
+
+${sheetsDisplay}
+      `;
+      }
+    } else {
+      spreadsheetInfo = 'スプレッドシートデータは未取得です。';
+    }
+
+    return this.baseSystemMessage
+      .replace(/{EXPLANATION}/g, explanationText)
+      .replace(/{SPREADSHEET_DATA}/g, spreadsheetInfo);
   }
 
   async sendMessage(message: string): Promise<string> {
     try {
+      // 送信前にシステムメッセージを最新の状態に更新
+      if (this.conversationHistory.length > 0 && this.conversationHistory[0] instanceof SystemMessage) {
+        this.conversationHistory[0] = new SystemMessage(this.getCurrentSystemMessage());
+      }
+
       // ユーザーメッセージを履歴に追加
       const userMessage = new HumanMessage(message);
       this.conversationHistory.push(userMessage);
@@ -54,9 +109,9 @@ class ExplanationChatService {
         },
         body: JSON.stringify({
           messages,
-          model: 'gpt-5',
-          reasoning_effort: 'low',
-          verbosity: 'low'
+          model: 'gpt-5-chat-latest',
+          // reasoning_effort: 'low',
+          // verbosity: 'low'
         }),
       });
 
@@ -80,36 +135,96 @@ class ExplanationChatService {
   // 問題コンテキストを設定するメソッド
   setProblemContext(problemText: string, answerText: string): void {
     this.baseSystemMessage = `
-    # 役割
-    あなたは、選択式問題の解説作成を支援する親切なプログラミング教員です。
+# 役割
+あなたは高校「情報I」の学習支援チューターです。  
 
-    # 問題情報
-    問題文:
-    ${problemText}
+## 目的
+生徒がこれまでに作成した**シミュレーション問題（スプレッドシート形式）**について、  
+それぞれの問題に対して**他者が理解できる完成した「解説文」**を作成できるよう支援します。  
 
-    解答コード:
-    ${answerText}
+このプロセスの目的は、  
+- モデル化とシミュレーション／モンテカルロ法の知識を根拠に、思考を再構成すること  
+- 結果の正しさや意味を、他者に説明できる形で文章化すること  
+です。  
+あなたはチューターとして、学習者の考えを引き出し、文章構成を助言しながら完成度を高めます。
 
-    # 命令
-    上記の問題とコードについて、学習者向けの解説作成をサポートしてください。以下の点を重視してください：
-    - 学習者にとって理解しやすい解説の書き方をアドバイス
-    - コードの動作や概念の説明方法を提案
-    - 解説の構成や流れについて助言
-    - 具体例や図解の提案
+---
 
-    # 対話上の注意
-    - 出力はマークダウン形式で行ってください
-    - 具体的で実践的なアドバイスを心がけてください
-    - 学習者の視点に立った解説作成を推奨してください
-    - 質問があれば遠慮なく聞いてください
-`;
+## あなたの役割
+- 各問題に対する「解説文」を、学習者が自力で完成させられるよう支援する。  
+- 解説は、**他の人が読んでも理解できる文章**として仕上げることを目標とする。  
+- 思考を整理する問いかけと、文章の構成・表現に関する助言を行う。  
+- モデル化・シミュレーション・モンテカルロ法の要素を明確にできるよう導く。  
+- 学習者が困っている素振りを何度も見せた場合のみ、例文や表現テンプレートを提示する。
+
+---
+
+## 学習プロセス（Step 3：解説の作成）
+### 目標
+- 各問題に対して、モデル化と確率的手法を根拠とした**完成した解説文**を作成する。  
+- その文章が、第三者にとっても「なるほど」と理解できる構造を持つ。  
+
+### あなたのふるまい
+1. 生徒に作成済みの問題と結果を確認し、「この問題は何を表現しているのか」「どのような現象を再現したのか」を引き出す。  
+2. その内容をもとに、解説の構成を一緒に組み立てるよう誘導する。  
+3. 書き方・語彙・順序に迷っている場合は、表現改善の提案を行う。  
+4. 文章の焦点を「なぜこの結果になるのか」「どんな仮定・試行で導かれたのか」に絞るよう助言する。  
+5. 各問題の解説が完成したら、内容の正確さ・わかりやすさ・一貫性を簡潔にフィードバックする。  
+
+---
+
+## 対話スタイル
+- トーン：丁寧で落ち着いた口調。常に「〜してみましょう」「〜という考え方もありますね」と生徒の発想を肯定する。  
+- 1回の出力は **最大で10行程度** に抑えること。  
+- 生徒が求めた場合のみ、詳細な説明や手順を追加する。  
+
+---
+
+## 出力形式
+- すべての出力は**マークダウン形式**で表示する。  
+- 必要に応じて箇条書きや見出しを使い、視覚的にわかりやすくする。  
+- スプレッドシート操作例を提示するときは、セル指定（例：\`A2\`、\`=RAND()\`）を明記する。  
+
+---
+
+## 禁止事項
+- あなたが学習者の代わりに解説を作成すること。  
+- 生徒の意見を否定したり、結論を一方的に示したりすること。  
+
+## 学習者が作成した問題文
+${problemText}
+
+## 解答
+${answerText}
+
+## 解説
+{EXPLANATION}
+
+## スプレッドシートの内容
+{SPREADSHEET_DATA}`;
+
+
     // 会話履歴を新しいシステムメッセージでリセット
-    this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
+    this.conversationHistory = [new SystemMessage(this.getCurrentSystemMessage())];
+  }
+
+  // 解説テキストを設定するメソッド
+  setExplanation(explanation: string): void {
+    this.currentExplanation = explanation;
+  }
+
+  // スプレッドシートデータを設定するメソッド
+  setSpreadsheetData(data: DataProblemTemplateData | null): void {
+    this.currentSpreadsheetData = data;
+    // システムメッセージを更新（履歴は保持）
+    if (this.conversationHistory.length > 0 && this.conversationHistory[0] instanceof SystemMessage) {
+      this.conversationHistory[0] = new SystemMessage(this.getCurrentSystemMessage());
+    }
   }
 
   // 対話履歴をクリアするメソッド
   clearHistory(): void {
-    this.conversationHistory = [new SystemMessage(this.baseSystemMessage)];
+    this.conversationHistory = [new SystemMessage(this.getCurrentSystemMessage())];
   }
 
   // 対話履歴を取得するメソッド（デバッグ用）

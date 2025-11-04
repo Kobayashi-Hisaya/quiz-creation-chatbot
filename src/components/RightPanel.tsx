@@ -110,6 +110,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         sessionStorage.setItem('problemText', latestData.problemText || '');
         sessionStorage.setItem('answerText', latestData.answerText || '');
         sessionStorage.setItem('learningTopic', problemData.learningTopic || '');
+
+        // 既存の解説テキストがあれば保存（add-explanationページで入力済みの場合）
+        const existingExplanation = sessionStorage.getItem('explanation') || '';
+        if (existingExplanation) {
+          sessionStorage.setItem('explanation', existingExplanation);
+        }
       }
 
       // Next.jsのルーターで遷移

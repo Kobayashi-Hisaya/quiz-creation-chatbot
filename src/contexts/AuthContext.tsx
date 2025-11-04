@@ -65,21 +65,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     // 認証状態の変更を監視
+    // NOTE: Supabase公式ドキュメントの警告に従い、ハンドラー内でawaitを使用しない
+    // 参考: https://supabase.com/docs/reference/javascript/auth-onauthstatechange
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[AuthContext] onAuthStateChange イベント:', {
-        event: _event,
-        hasSession: !!session,
-        userId: session?.user?.id
-      });
-      
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
       if (session?.user) {
-        console.log('[AuthContext] onAuthStateChange: setUser 実行');
-        setSession(session);
-        setUser(session.user as User);
-        console.log('[AuthContext] onAuthStateChange: fetchProfile 呼び出し');
-        await fetchProfile(session.user.id);
+        // デッドロックを避けるため、非同期処理を遅延実行
+        setTimeout(() => {
+          fetchProfile(session.user.id);
+        }, 0);
       } else {
         console.log('[AuthContext] onAuthStateChange: ユーザーなし');
         setProfile(null);
@@ -92,6 +90,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       console.log('[AuthContext] useEffect cleanup: subscription.unsubscribe() 実行');
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // Page Visibility API: タブがアクティブになったときにセッションをリフレッシュ
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[AuthContext] Tab became visible, refreshing session...');
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.error('[AuthContext] Session refresh error:', error);
+          } else {
+            console.log('[AuthContext] Session refreshed successfully');
+            // セッション更新成功時に状態を更新
+            if (data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+          }
+        } catch (err) {
+          console.error('[AuthContext] Failed to refresh session:', err);
+        }
+      }
+    };
+
+    // visibilitychangeイベントリスナーを追加
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
