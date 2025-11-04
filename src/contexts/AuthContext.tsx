@@ -42,14 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
     // 認証状態の変更を監視
+    // NOTE: Supabase公式ドキュメントの警告に従い、ハンドラー内でawaitを使用しない
+    // 参考: https://supabase.com/docs/reference/javascript/auth-onauthstatechange
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        // デッドロックを避けるため、非同期処理を遅延実行
+        setTimeout(() => {
+          fetchProfile(session.user.id);
+        }, 0);
       } else {
         setProfile(null);
         setLoading(false);
@@ -57,6 +62,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Page Visibility API: タブがアクティブになったときにセッションをリフレッシュ
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[AuthContext] Tab became visible, refreshing session...');
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.error('[AuthContext] Session refresh error:', error);
+          } else {
+            console.log('[AuthContext] Session refreshed successfully');
+            // セッション更新成功時に状態を更新
+            if (data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+          }
+        } catch (err) {
+          console.error('[AuthContext] Failed to refresh session:', err);
+        }
+      }
+    };
+
+    // visibilitychangeイベントリスナーを追加
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const fetchProfile = async (userId: string) => {

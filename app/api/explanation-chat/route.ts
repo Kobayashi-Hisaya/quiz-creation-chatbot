@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messages, model = "gpt-5", reasoning_effort = "low", verbosity = "low" } = body;
+    const { messages, model = "gpt-5-chat-latest" } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
 
     const chatModel = new ChatOpenAI({
       apiKey: OPENAI_API_KEY,
-      model,
-      verbosity,
-      modelKwargs: {
-      reasoning_effort: reasoning_effort
-  },
+      model
+      // verbosity,
+      // modelKwargs: {
+      // reasoning_effort: reasoning_effort
+  // },
     });
 
     const response = await chatModel.invoke(messages);

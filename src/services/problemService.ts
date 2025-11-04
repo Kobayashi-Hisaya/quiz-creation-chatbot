@@ -150,6 +150,21 @@ export const saveProblem = async (
       }
     }
 
+    // セッションを明示的にリフレッシュ（Phase 2: タブ切り替え対策）
+    console.log('[problemService] セッションリフレッシュ開始');
+    try {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.warn('[problemService] セッションリフレッシュ警告:', refreshError);
+        // リフレッシュ失敗は警告のみで続行（既存セッションが有効な可能性）
+      } else {
+        console.log('[problemService] セッションリフレッシュ成功');
+      }
+    } catch (refreshErr) {
+      console.warn('[problemService] セッションリフレッシュ例外:', refreshErr);
+      // リフレッシュ失敗は警告のみで続行
+    }
+
     // 問題データを保存
     console.log('[problemService] 問題データ保存開始');
     const insertData = {
@@ -158,32 +173,70 @@ export const saveProblem = async (
     };
     console.log('[problemService] 挿入データ:', insertData);
 
+    // Phase 3: リトライロジック付きでデータベース挿入
     let problem, problemError;
-    try {
-      console.log('[problemService] Supabase insert 開始');
-      const insertResult = await Promise.race([
-        supabase
-          .from('problems')
-          .insert([insertData])
-          .select()
-          .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 15000))
-      ]) as { data: Problem | null, error: Error | null };
-      
-      problem = insertResult.data;
-      problemError = insertResult.error;
-      console.log('[problemService] Supabase insert 完了');
-    } catch (error) {
-      console.error('[problemService] Supabase insert エラー:', error);
-      problemError = error;
-      problem = null;
+    let retryCount = 0;
+    const maxRetries = 1; // 1回だけリトライ
+
+    while (retryCount <= maxRetries) {
+      try {
+        if (retryCount > 0) {
+          console.log(`[problemService] リトライ ${retryCount}/${maxRetries}`);
+          // リトライ前にセッションを再度リフレッシュ
+          console.log('[problemService] リトライ前のセッションリフレッシュ');
+          await supabase.auth.refreshSession();
+          // 少し待機してから再試行
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        console.log('[problemService] Supabase insert 開始');
+        const insertResult = await Promise.race([
+          supabase
+            .from('problems')
+            .insert([insertData])
+            .select()
+            .single(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('データベース挿入がタイムアウトしました')), 20000)) // 15秒→20秒に延長
+        ]) as { data: Problem | null, error: Error | null };
+
+        problem = insertResult.data;
+        problemError = insertResult.error;
+        console.log('[problemService] Supabase insert 完了');
+
+        // 成功したらループを抜ける
+        if (!problemError && problem) {
+          break;
+        }
+
+        // エラーがある場合、リトライするかチェック
+        if (problemError) {
+          console.error(`[problemService] 試行 ${retryCount + 1} でエラー:`, problemError);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            continue;
+          }
+        }
+
+        break;
+      } catch (error) {
+        console.error(`[problemService] 試行 ${retryCount + 1} で例外:`, error);
+        problemError = error;
+        problem = null;
+
+        if (retryCount < maxRetries) {
+          retryCount++;
+          continue;
+        }
+
+        break;
+      }
     }
 
-    console.log('[problemService] 問題保存結果:', { problem, problemError });
+    console.log('[problemService] 問題保存結果:', { problem, problemError, retryCount });
 
     if (problemError || !problem) {
       console.error('[problemService] Problem save error:', problemError);
-      return { success: false, error: `問題の保存に失敗しました: ${problemError instanceof Error ? problemError.message : JSON.stringify(problemError)}` };
+      return { success: false, error: `問題の保存に失敗しました（${retryCount + 1}回試行）: ${problemError instanceof Error ? problemError.message : JSON.stringify(problemError)}` };
     }
 
     // チャット履歴を保存
