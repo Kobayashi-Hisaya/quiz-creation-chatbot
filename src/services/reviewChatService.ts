@@ -86,7 +86,7 @@ class ReviewChatService {
         },
         body: JSON.stringify({
           messages,
-          model: 'gpt-5',
+          model: 'gpt-5-chat-latest',
         }),
         signal, // AbortSignalを追加
       });
