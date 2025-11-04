@@ -12,6 +12,7 @@ import { explanationChatService } from '@/services/explanationChatService';
 import { reviewChatService } from '@/services/reviewChatService';
 import { chatService } from '@/services/chatService';
 import { assessmentService } from '@/services/assessmentService';
+import { suggestionService } from '@/services/suggestionService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 import type { QuizChoice } from '@/types/quiz';
 
@@ -312,14 +313,52 @@ export default function AgentAssessmentPage() {
 
     try {
       const userInfo = { id: user.id, email: user.email };
-      
+
       // 修正後の解説を modified_explanation として保存
       const updatedProblemData = {
         ...sessionData.problemData,
         modified_explanation: editedExplanation // 修正後の解説を設定
       };
 
-      const result = await saveProblem(updatedProblemData, sessionData.chatHistories, { id: user.id, email: user.email || undefined });
+      // 【提案生成処理】問題保存前に議論促進コメントを生成
+      let suggestionHistory: ChatHistoryInput | null = null;
+
+      try {
+        console.log('[AgentAssessment] 議論促進コメントの生成を開始します...');
+
+        // SessionStorageから必要なデータを取得
+        const storedPredictedAccuracy = sessionStorage.getItem('predicted_accuracy');
+        const storedPredictedAnswerTime = sessionStorage.getItem('predicted_answerTime');
+
+        const suggestion = await suggestionService.generateSuggestion({
+          learningTopic: learningTopic || '',
+          predictedAccuracy: storedPredictedAccuracy ? parseInt(storedPredictedAccuracy, 10) : null,
+          predictedAnswerTime: storedPredictedAnswerTime ? parseInt(storedPredictedAnswerTime, 10) : null,
+          problemText: problemText,
+          answerText: answerText,
+          spreadsheetData: currentSpreadsheetData
+        });
+
+        suggestionHistory = {
+          chat_type: 'suggestion',
+          messages: suggestion
+        };
+
+        console.log('[AgentAssessment] 議論促進コメントの生成に成功しました');
+      } catch (error) {
+        console.error('[AgentAssessment] 議論促進コメントの生成エラー:', error);
+        // エラーでも続行（提案なしで保存）
+        console.warn('[AgentAssessment] 提案なしで問題を保存します');
+      }
+
+      // チャット履歴に提案を追加
+      const chatHistories = [...sessionData.chatHistories];
+      if (suggestionHistory) {
+        chatHistories.push(suggestionHistory);
+        console.log('[AgentAssessment] 提案をチャット履歴に追加しました');
+      }
+
+      const result = await saveProblem(updatedProblemData, chatHistories, { id: user.id, email: user.email || undefined });
 
       console.log('[AgentAssessment] 保存結果:', result);
 
@@ -1074,7 +1113,7 @@ export default function AgentAssessmentPage() {
               }
             }}
           >
-            {isSaving ? '保存中...' : '✓ 問題保存してダッシュボードへ'}
+            {isSaving ? '保存中（提案生成含む）...' : '✓ 問題保存してダッシュボードへ'}
           </button>
         </div>
         </div>

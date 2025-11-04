@@ -4,6 +4,7 @@ export interface Profile {
   id: string; // UUID, references auth.users(id)
   email: string;
   is_admin: boolean;
+  group_id?: number | null; // グループID（1,2,3,7など）
   created_at: string; // ISO 8601 timestamp
 }
 
@@ -43,7 +44,7 @@ export interface ChatHistory {
   id: string; // UUID
   problem_id: string; // UUID, references problems(id)
   user_id: string; // UUID, references auth.users(id)
-  chat_type: 'creation' | 'explanation' | 'review' | 'assessment';
+  chat_type: 'creation' | 'explanation' | 'review' | 'assessment' | 'suggestion';
   messages: ChatMessage[]; // JSONB
   created_at: string; // ISO 8601 timestamp
 }
