@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProblem } from '@/services/problemService';
 import type { SaveProblemData, ChatHistoryInput } from '@/services/problemService';
-import { AssessmentSpreadsheetPanel } from '@/components/AssessmentSpreadsheetPanel';
 
 interface ProblemDataToSave extends SaveProblemData {
   title: string;
@@ -125,16 +124,16 @@ export default function AgentAssessmentPage() {
   const runDiagnosis = async () => {
     setIsDiagnosing(true);
     try {
-      // Assessment spreadsheet データを取得（もし存在する場合）
+      // スプシ①（作業用）のデータを取得して診断
       let spreadsheetData = null;
-      if (sessionData?.problemData?.assessment_spreadsheet_id) {
+      if (sessionData?.problemData?.spreadsheet_id) {
         try {
           const sheetResponse = await fetch(
-            `/api/gas/get-assessment-data?spreadsheetId=${sessionData.problemData.assessment_spreadsheet_id}`
+            `/api/gas/get-problem-data?spreadsheetId=${sessionData.problemData.spreadsheet_id}`
           );
           if (sheetResponse.ok) {
             spreadsheetData = await sheetResponse.json();
-            console.log('[AgentAssessment] スプレッドシートデータ取得:', spreadsheetData);
+            console.log('[AgentAssessment] スプレッドシート①データ取得:', spreadsheetData);
           }
         } catch (error) {
           console.warn('[AgentAssessment] スプレッドシートデータ取得エラー:', error);
@@ -631,20 +630,37 @@ export default function AgentAssessmentPage() {
               paddingBottom: '12px',
               borderBottom: '2px solid #2196f3'
             }}>
-              診断用スプレッドシート
+              スプレッドシート（編集・診断）
             </h2>
 
-            {sessionData?.problemData?.assessment_spreadsheet_id ? (
-              <AssessmentSpreadsheetPanel
-                userEmail={user?.email || ''}
-                problemData={sessionData.problemData}
-                onDataChange={(data) => {
-                  console.log('Spreadsheet data changed:', data);
-                }}
-                onError={(error) => {
-                  console.error('Spreadsheet error:', error);
-                }}
-              />
+            {sessionData?.problemData?.spreadsheet_id ? (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                height: '100%'
+              }}>
+                <iframe
+                  src={`https://docs.google.com/spreadsheets/d/${sessionData.problemData.spreadsheet_id}/edit?usp=sharing&rm=minimal`}
+                  style={{
+                    flex: 1,
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    minHeight: '400px',
+                    backgroundColor: 'white'
+                  }}
+                  title="作業用スプレッドシート（スプシ①）"
+                  allowFullScreen
+                />
+                <div style={{
+                  fontSize: '11px',
+                  color: '#666',
+                  textAlign: 'center',
+                  padding: '4px'
+                }}>
+                  このスプレッドシートで問題データを直接編集できます
+                </div>
+              </div>
             ) : (
               <div style={{
                 backgroundColor: '#fff3cd',
