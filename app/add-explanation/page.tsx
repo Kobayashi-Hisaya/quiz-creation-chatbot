@@ -11,7 +11,6 @@ import { reviewChatService } from '@/services/reviewChatService';
 import { chatService } from '@/services/chatService';
 import { useProblem } from '@/contexts/ProblemContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { saveProblem } from '@/services/problemService';
 import type { DataProblemTemplateData } from '@/services/gasClientService';
 
 const HORIZONTAL_SPLIT_KEY = 'add-explanation-horizontal-split';
@@ -43,6 +42,7 @@ const AddExplanationPage: React.FC = () => {
   const [answerText, setAnswerText] = useState<string>('');
   const [learningTopic, setLearningTopic] = useState<string>('');
   const [explanation, setExplanation] = useState<string>('');
+  const [problemTitle, setProblemTitle] = useState<string>(''); // タイトルを保持
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showTitlePopup, setShowTitlePopup] = useState(false);
@@ -74,6 +74,7 @@ const AddExplanationPage: React.FC = () => {
         console.log('storedPredictedAnswerTime:', storedPredictedAnswerTime);
         const storedLearningTopic = sessionStorage.getItem('learningTopic');
         const storedExplanation = sessionStorage.getItem('explanation');
+        const storedTitle = sessionStorage.getItem('problemTitle'); // タイトルを復元
 
         if (!storedSpreadsheetId || !storedProblemText) {
           alert('必要なデータが見つかりません。create-quizページからやり直してください。');
@@ -84,6 +85,12 @@ const AddExplanationPage: React.FC = () => {
         setSpreadsheetId(storedSpreadsheetId);
         setProblemText(storedProblemText);
         setAnswerText(storedAnswerText || '');
+
+        // 保存されているタイトルがあれば復元
+        if (storedTitle) {
+          setProblemTitle(storedTitle);
+          console.log('[add-explanation] タイトルを復元:', storedTitle);
+        }
 
         // 保存されている解説があれば復元
         if (storedExplanation) {
@@ -169,6 +176,11 @@ const AddExplanationPage: React.FC = () => {
     console.log('=== タイトル入力完了 ===');
     console.log('title:', title);
     setShowTitlePopup(false);
+
+    // タイトルをstateとSessionStorageに保存
+    setProblemTitle(title);
+    sessionStorage.setItem('problemTitle', title);
+    console.log('[add-explanation] タイトルをSessionStorageに保存:', title);
 
     try {
       setIsSaving(true);
@@ -258,10 +270,9 @@ const AddExplanationPage: React.FC = () => {
       sessionStorage.setItem('problemDataForAssessment', JSON.stringify(sessionData));
       console.log('[add-explanation] SessionStorageに保存完了。/agent-assessmentに遷移します');
 
-      // sessionStorageをクリア
-      sessionStorage.removeItem('currentSpreadsheetId');
-      sessionStorage.removeItem('problemText');
-      sessionStorage.removeItem('answerText');
+      // ブラウザバック対応のため、SessionStorageデータは削除せずに保持
+      // currentSpreadsheetId, problemText, answerText, problemTitle 等は全て保持
+      // これらのデータは /agent-assessment で問題保存時に削除される
 
       // agent-assessment ページに遷移（DB保存はここで行う）
       router.push('/agent-assessment');
@@ -293,6 +304,7 @@ const AddExplanationPage: React.FC = () => {
         isOpen={showTitlePopup}
         onSubmit={handleTitleSubmit}
         onCancel={handleTitleCancel}
+        initialTitle={problemTitle}
       />
       <Split
         className="split-horizontal"

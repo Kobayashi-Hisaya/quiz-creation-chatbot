@@ -49,8 +49,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     setProblemData({
       problem: data.problemText || '',
       code: data.code || data.answerText || '',
-      language: 'data_analysis',
-      learningTopic: 'data_analysis',
+      language: problemData.language || '',
+      learningTopic: problemData.learningTopic || '',
       predicted_accuracy: null,
       predicted_answerTime: null,
     });

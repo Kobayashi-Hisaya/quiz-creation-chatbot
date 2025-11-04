@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TitleInputPopupProps {
   isOpen: boolean;
   onSubmit: (title: string) => void;
   onCancel: () => void;
+  initialTitle?: string; // 初期タイトル（オプション）
 }
 
-export const TitleInputPopup: React.FC<TitleInputPopupProps> = ({ isOpen, onSubmit, onCancel }) => {
-  const [title, setTitle] = useState('');
+export const TitleInputPopup: React.FC<TitleInputPopupProps> = ({ isOpen, onSubmit, onCancel, initialTitle = '' }) => {
+  const [title, setTitle] = useState(initialTitle);
+
+  // initialTitleが変更されたら更新
+  useEffect(() => {
+    if (initialTitle) {
+      setTitle(initialTitle);
+    }
+  }, [initialTitle]);
 
   if (!isOpen) return null;
 
